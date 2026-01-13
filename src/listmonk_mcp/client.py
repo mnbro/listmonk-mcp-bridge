@@ -452,7 +452,6 @@ class ListmonkClient:
         Returns:
             Dict containing the uploaded media data including URL
         """
-        import os
         from pathlib import Path
 
         client = self._get_client()
@@ -490,25 +489,25 @@ class ListmonkClient:
         if title:
             data['title'] = title
 
+        # Create a new client without Content-Type header for multipart upload
+        # The client will automatically set multipart/form-data with boundary
+        upload_client = AsyncClient(
+            timeout=self.config.timeout,
+            headers={
+                "Authorization": f"token {self.config.username}:{self.config.password}",
+                "User-Agent": "Listmonk-MCP-Server/0.1.0",
+                "Accept": "application/json",
+                # No Content-Type - will be set automatically by httpx for multipart
+            }
+        )
+
         try:
-            # Create a new client without Content-Type header for multipart upload
-            # The client will automatically set multipart/form-data with boundary
-            upload_client = AsyncClient(
-                timeout=self.config.timeout,
-                headers={
-                    "Authorization": f"token {self.config.username}:{self.config.password}",
-                    "User-Agent": "Listmonk-MCP-Server/0.1.0",
-                    "Accept": "application/json",
-                    # No Content-Type - will be set automatically by httpx for multipart
-                }
-            )
-
             response = await upload_client.post(url, files=files, data=data)
-            await upload_client.aclose()
             return await self._handle_response(response)
-
         except httpx.RequestError as e:
             raise ListmonkAPIError(f"Media upload failed: {str(e)}") from e
+        finally:
+            await upload_client.aclose()
 
     async def update_media(self, media_id: int, title: str) -> dict[str, Any]:
         """Update media file metadata (rename).
