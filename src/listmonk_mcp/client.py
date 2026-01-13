@@ -42,7 +42,7 @@ class ListmonkClient:
         auth_token = f"{self.config.username}:{self.config.password}"
 
         self._client = AsyncClient(
-            timeout=httpx.Timeout(self.config.timeout),
+            timeout=self.config.timeout,
             limits=httpx.Limits(max_keepalive_connections=5, max_connections=10),
             headers={
                 "User-Agent": "Listmonk-MCP-Server/0.1.0",
@@ -270,8 +270,8 @@ class ListmonkClient:
 
     async def get_list_subscribers(self, list_id: int, page: int = 1, per_page: int = 20) -> dict[str, Any]:
         """Get subscribers for a specific list."""
-        params = {"page": page, "per_page": per_page}
-        return await self._request("GET", f"/api/lists/{list_id}/subscribers", params=params)
+        params = {"page": page, "per_page": per_page, "list_id": list_id}
+        return await self._request("GET", "/api/subscribers", params=params)
 
     # Campaign Operations
     async def get_campaigns(
@@ -328,14 +328,22 @@ class ListmonkClient:
         body: str | None = None,
         tags: list[str] | None = None
     ) -> dict[str, Any]:
-        """Update an existing campaign."""
-        data: dict[str, Any] = {}
+        """Update an existing campaign.
+
+        If lists is not provided, fetches the current campaign's lists to preserve them.
+        """
+        # If lists not provided, fetch current campaign to get existing lists
+        if lists is None:
+            current = await self.get_campaign(campaign_id)
+            campaign_data = current.get("data", {})
+            current_lists = campaign_data.get("lists", [])
+            lists = [lst.get("id") for lst in current_lists if lst.get("id")]
+
+        data: dict[str, Any] = {"lists": lists}
         if name is not None:
             data["name"] = name
         if subject is not None:
             data["subject"] = subject
-        if lists is not None:
-            data["lists"] = lists
         if body is not None:
             data["body"] = body
         if tags is not None:
@@ -388,14 +396,23 @@ class ListmonkClient:
         body: str | None = None,
         is_default: bool | None = None
     ) -> dict[str, Any]:
-        """Update an existing template."""
-        data: dict[str, Any] = {}
-        if name is not None:
-            data["name"] = name
-        if body is not None:
-            data["body"] = body
-        if is_default is not None:
-            data["is_default"] = is_default
+        """Update an existing template.
+
+        Fetches the current template first and merges changes, as Listmonk
+        requires all fields in PUT requests.
+        """
+        # Fetch current template to get all existing values
+        current = await self.get_template(template_id)
+        template_data = current.get("data", {})
+
+        # Build update data with current values as defaults
+        # IMPORTANT: type must be included, otherwise Listmonk validates as transactional template
+        data: dict[str, Any] = {
+            "name": name if name is not None else template_data.get("name", ""),
+            "type": template_data.get("type", "campaign"),
+            "body": body if body is not None else template_data.get("body", ""),
+            "is_default": is_default if is_default is not None else template_data.get("is_default", False),
+        }
 
         return await self._request("PUT", f"/api/templates/{template_id}", json_data=data)
 
@@ -419,6 +436,97 @@ class ListmonkClient:
             "content_type": content_type
         }
         return await self._request("POST", "/api/tx", json_data=payload)
+
+    # Media Operations
+    async def get_media(self) -> dict[str, Any]:
+        """Get all media files."""
+        return await self._request("GET", "/api/media")
+
+    async def upload_media(self, file_path: str, title: str | None = None) -> dict[str, Any]:
+        """Upload a media file.
+
+        Args:
+            file_path: Absolute path to the file to upload
+            title: Optional title for the media file (defaults to filename)
+
+        Returns:
+            Dict containing the uploaded media data including URL
+        """
+        import os
+        from pathlib import Path
+
+        client = self._get_client()
+        url = self._build_url("/api/media")
+
+        file_path_obj = Path(file_path)
+        if not file_path_obj.exists():
+            raise ListmonkAPIError(f"File not found: {file_path}")
+
+        # Determine content type from file extension
+        content_types = {
+            '.jpg': 'image/jpeg',
+            '.jpeg': 'image/jpeg',
+            '.png': 'image/png',
+            '.gif': 'image/gif',
+            '.webp': 'image/webp',
+            '.svg': 'image/svg+xml',
+        }
+        ext = file_path_obj.suffix.lower()
+        content_type = content_types.get(ext, 'application/octet-stream')
+
+        # Use filename as title if not provided
+        if title is None:
+            title = file_path_obj.name
+
+        # Read file content
+        with open(file_path, 'rb') as f:
+            file_content = f.read()
+
+        # Prepare multipart form data
+        files = {
+            'file': (file_path_obj.name, file_content, content_type)
+        }
+        data = {}
+        if title:
+            data['title'] = title
+
+        try:
+            # Create a new client without Content-Type header for multipart upload
+            # The client will automatically set multipart/form-data with boundary
+            upload_client = AsyncClient(
+                timeout=self.config.timeout,
+                headers={
+                    "Authorization": f"token {self.config.username}:{self.config.password}",
+                    "User-Agent": "Listmonk-MCP-Server/0.1.0",
+                    "Accept": "application/json",
+                    # No Content-Type - will be set automatically by httpx for multipart
+                }
+            )
+
+            response = await upload_client.post(url, files=files, data=data)
+            await upload_client.aclose()
+            return await self._handle_response(response)
+
+        except httpx.RequestError as e:
+            raise ListmonkAPIError(f"Media upload failed: {str(e)}") from e
+
+    async def update_media(self, media_id: int, title: str) -> dict[str, Any]:
+        """Update media file metadata (rename).
+
+        Args:
+            media_id: ID of the media file
+            title: New title for the media file
+        """
+        data = {"title": title}
+        return await self._request("PUT", f"/api/media/{media_id}", json_data=data)
+
+    async def delete_media(self, media_id: int) -> dict[str, Any]:
+        """Delete a media file.
+
+        Args:
+            media_id: ID of the media file to delete
+        """
+        return await self._request("DELETE", f"/api/media/{media_id}")
 
 
 async def create_client(config: Config) -> ListmonkClient:

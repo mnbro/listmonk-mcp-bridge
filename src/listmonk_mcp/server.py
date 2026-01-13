@@ -305,6 +305,37 @@ async def list_subscribers() -> str:
 
 # List Management Tools
 @mcp.tool()
+async def get_mailing_lists() -> str:
+    """
+    Get all mailing lists.
+
+    Returns a list of all mailing lists with their IDs, UUIDs, names, subscriber counts, and types.
+    """
+    async def _get_lists_logic() -> str:
+        client = get_client()
+        result = await client.get_lists()
+
+        data = result.get("data", {})
+        lists = data.get("results", []) if isinstance(data, dict) else data
+
+        if not lists:
+            return "No mailing lists found."
+
+        list_items = []
+        for lst in lists:
+            list_items.append(
+                f"- ID: {lst.get('id')} | {lst.get('name')} | "
+                f"UUID: {lst.get('uuid')} | "
+                f"Subscribers: {lst.get('subscriber_count', 0)} | "
+                f"Type: {lst.get('type', 'unknown')}"
+            )
+
+        return f"Found {len(lists)} mailing lists:\n" + "\n".join(list_items)
+
+    return await safe_execute_async(_get_lists_logic)  # type: ignore[no-any-return]
+
+
+@mcp.tool()
 async def create_mailing_list(
     name: str,
     type: str = "public",
@@ -414,14 +445,84 @@ async def get_list_subscribers_tool(
             per_page=per_page
         )
 
-        subscribers = result.get("data", [])
-        total = result.get("total", 0)
+        data = result.get("data", {})
+        subscribers = data.get("results", []) if isinstance(data, dict) else data
+        total = data.get("total", 0) if isinstance(data, dict) else len(subscribers)
         return f"Successfully retrieved {len(subscribers)} subscribers for list {list_id} (Total: {total}, Page: {page})"
 
     return await safe_execute_async(_get_list_subscribers_logic)  # type: ignore[no-any-return]
 
 
 # Campaign Management Tools
+@mcp.tool()
+async def get_campaigns(
+    status: str | None = None,
+    page: int = 1,
+    per_page: int = 20
+) -> str:
+    """
+    Get all campaigns with optional status filter.
+
+    Args:
+        status: Filter by status (draft, running, paused, finished, cancelled)
+        page: Page number for pagination
+        per_page: Number of campaigns per page
+    """
+    async def _get_campaigns_logic() -> str:
+        client = get_client()
+        result = await client.get_campaigns(page=page, per_page=per_page, status=status)
+
+        data = result.get("data", {})
+        campaigns = data.get("results", []) if isinstance(data, dict) else data
+        total = data.get("total", 0) if isinstance(data, dict) else len(campaigns)
+
+        if not campaigns:
+            return "No campaigns found."
+
+        campaign_items = []
+        for c in campaigns:
+            lists_str = ", ".join(str(lst.get("id")) for lst in c.get("lists", []))
+            campaign_items.append(
+                f"- ID: {c.get('id')} | {c.get('name')} | "
+                f"Status: {c.get('status', 'unknown')} | "
+                f"Lists: [{lists_str}]"
+            )
+
+        return f"Found {total} campaigns (showing {len(campaigns)}):\n" + "\n".join(campaign_items)
+
+    return await safe_execute_async(_get_campaigns_logic)  # type: ignore[no-any-return]
+
+
+@mcp.tool()
+async def get_campaign(campaign_id: int) -> str:
+    """
+    Get a specific campaign by ID including its full body content.
+
+    Args:
+        campaign_id: ID of the campaign to retrieve
+    """
+    async def _get_campaign_logic() -> str:
+        client = get_client()
+        result = await client.get_campaign(campaign_id)
+
+        campaign = result.get("data", {})
+        body = campaign.get('body', 'No content')
+        lists_str = ", ".join(str(lst.get("id")) for lst in campaign.get("lists", []))
+
+        return f"""Campaign ID: {campaign.get('id')}
+Name: {campaign.get('name')}
+Subject: {campaign.get('subject')}
+Status: {campaign.get('status')}
+Template ID: {campaign.get('template_id')}
+Lists: [{lists_str}]
+Content Type: {campaign.get('content_type', 'richtext')}
+
+Body:
+{body}"""
+
+    return await safe_execute_async(_get_campaign_logic)  # type: ignore[no-any-return]
+
+
 @mcp.tool()
 async def create_campaign(
     name: str,
@@ -773,6 +874,62 @@ async def get_list_subscribers_resource(list_id: str) -> str:
 
 # Template Management Tools
 @mcp.tool()
+async def get_templates() -> str:
+    """
+    Get all email templates.
+
+    Returns a list of all templates with their IDs, names, types, and default status.
+    """
+    async def _get_templates_logic() -> str:
+        client = get_client()
+        result = await client.get_templates()
+
+        data = result.get("data", {})
+        templates = data.get("results", []) if isinstance(data, dict) else data
+
+        if not templates:
+            return "No templates found."
+
+        template_items = []
+        for t in templates:
+            default_marker = " (DEFAULT)" if t.get('is_default', False) else ""
+            template_items.append(
+                f"- ID: {t.get('id')} | {t.get('name')} | "
+                f"Type: {t.get('type', 'campaign')}{default_marker}"
+            )
+
+        return f"Found {len(templates)} templates:\n" + "\n".join(template_items)
+
+    return await safe_execute_async(_get_templates_logic)  # type: ignore[no-any-return]
+
+
+@mcp.tool()
+async def get_template(template_id: int) -> str:
+    """
+    Get a specific template by ID including its full body content.
+
+    Args:
+        template_id: ID of the template to retrieve
+    """
+    async def _get_template_logic() -> str:
+        client = get_client()
+        result = await client.get_template(template_id)
+
+        template = result.get("data", {})
+        body = template.get('body', 'No content')
+
+        return f"""Template ID: {template.get('id')}
+Name: {template.get('name')}
+Type: {template.get('type', 'campaign')}
+Default: {template.get('is_default', False)}
+
+Body:
+{body}"""
+
+    return await safe_execute_async(_get_template_logic)  # type: ignore[no-any-return]
+
+
+@mcp.tool()
 async def create_template(
     name: str,
     body: str,
@@ -978,6 +1135,373 @@ async def get_template_preview(template_id: str) -> str:
 
     except ListmonkAPIError as e:
         return f"Error retrieving template content {template_id}: {str(e)}"
+
+
+# Media Management Tools
+@mcp.tool()
+async def get_media_list() -> str:
+    """
+    Get all media files from Listmonk.
+
+    Returns a list of all uploaded media with their IDs, filenames, URLs, and metadata.
+    """
+    async def _get_media_logic() -> str:
+        client = get_client()
+        result = await client.get_media()
+
+        # Debug: Check what we actually got
+        if not isinstance(result, dict):
+            return f"Error: Unexpected response type: {type(result)}. Response: {result}"
+
+        data = result.get("data", [])
+
+        # Handle both list and dict formats (Listmonk can return either)
+        if isinstance(data, dict):
+            # If it's a dict, it might be empty or have numbered keys
+            if not data:
+                return "No media files found."
+            # Convert dict values to list
+            media_list = list(data.values()) if data else []
+        else:
+            # It's already a list
+            media_list = data
+
+        # Flatten if the first element is itself a list (nested structure)
+        if media_list and isinstance(media_list[0], list):
+            media_list = media_list[0]
+
+        if not media_list:
+            return "No media files found."
+
+        media_items = []
+        for media in media_list:
+            created = media.get('created_at', 'Unknown')[:10]  # Just the date part
+            size_bytes = media.get('meta', {}).get('size', 0) if isinstance(media.get('meta'), dict) else 0
+            size_kb = size_bytes / 1024 if size_bytes > 0 else 0
+            media_items.append(
+                f"- ID: {media.get('id')} | {media.get('filename')} | "
+                f"Title: {media.get('title', media.get('filename', 'No title'))} | "
+                f"Size: {size_kb:.1f} KB | "
+                f"Created: {created}\n"
+                f"  URL: {media.get('url', 'No URL')}"
+            )
+
+        return f"Found {len(media_list)} media files:\n" + "\n".join(media_items)
+
+    return await safe_execute_async(_get_media_logic)  # type: ignore[no-any-return]
+
+
+@mcp.tool()
+async def upload_media_file(
+    file_path: str,
+    title: str | None = None
+) -> str:
+    """
+    Upload a media file to Listmonk.
+
+    Args:
+        file_path: Absolute path to the image file to upload
+        title: Optional title/description for the media (defaults to filename)
+
+    Returns:
+        Success message with the uploaded file's URL
+    """
+    async def _upload_media_logic() -> str:
+        client = get_client()
+        result = await client.upload_media(file_path, title)
+
+        media_data = result.get("data", {})
+        media_id = media_data.get("id", "unknown")
+        url = media_data.get("url", "No URL")
+        filename = media_data.get("filename", "unknown")
+
+        return f"Successfully uploaded '{filename}' (ID: {media_id})\nURL: {url}"
+
+    return await safe_execute_async(_upload_media_logic)  # type: ignore[no-any-return]
+
+
+@mcp.tool()
+async def rename_media(media_id: int, new_title: str) -> str:
+    """
+    Rename/update the title of a media file.
+
+    Args:
+        media_id: ID of the media file to rename
+        new_title: New title/description for the media file
+
+    Returns:
+        Success message
+    """
+    async def _rename_media_logic() -> str:
+        client = get_client()
+        await client.update_media(media_id, new_title)
+
+        return f"Successfully renamed media {media_id} to '{new_title}'"
+
+    return await safe_execute_async(_rename_media_logic)  # type: ignore[no-any-return]
+
+
+@mcp.tool()
+async def delete_media_file(media_id: int) -> str:
+    """
+    Delete a media file from Listmonk.
+
+    Args:
+        media_id: ID of the media file to delete
+
+    Returns:
+        Success message
+    """
+    async def _delete_media_logic() -> str:
+        client = get_client()
+        await client.delete_media(media_id)
+
+        return f"Successfully deleted media {media_id}"
+
+    return await safe_execute_async(_delete_media_logic)  # type: ignore[no-any-return]
+
+
+# Media Resources
+@mcp.resource("listmonk://media")
+async def list_media_files() -> str:
+    """List all media files with details."""
+    try:
+        client = get_client()
+        result = await client.get_media()
+
+        data = result.get("data", [])
+
+        # Handle both list and dict formats
+        if isinstance(data, dict):
+            if not data:
+                return "# Media Files\n\nNo media files found."
+            media_list = list(data.values())
+        else:
+            media_list = data
+
+        # Flatten if the first element is itself a list (nested structure)
+        if media_list and isinstance(media_list[0], list):
+            media_list = media_list[0]
+
+        if not media_list:
+            return "# Media Files\n\nNo media files found."
+
+        media_items = []
+        for media in media_list:
+            size_bytes = media.get('meta', {}).get('size', 0) if isinstance(media.get('meta'), dict) else 0
+            size_kb = size_bytes / 1024 if size_bytes > 0 else 0
+            created = media.get('created_at', 'Unknown')
+            media_items.append(
+                f"- **{media.get('filename')}** (ID: {media.get('id')})\n"
+                f"  - Title: {media.get('title', media.get('filename', 'No title'))}\n"
+                f"  - Size: {size_kb:.1f} KB\n"
+                f"  - Created: {created}\n"
+                f"  - URL: {media.get('url', 'No URL')}"
+            )
+
+        media_items_text = "\n\n".join(media_items)
+
+        return f"""# Media Files
+
+**Total Files:** {len(media_list)}
+
+{media_items_text}
+
+*Use upload_media_file to add new files, rename_media to update titles, or delete_media_file to remove files.*
+"""
+
+    except ListmonkAPIError as e:
+        return f"Error retrieving media files: {str(e)}"
+
+
+# Campaign Body Editing Tools
+
+@mcp.tool()
+async def replace_in_campaign_body(
+    campaign_id: int,
+    search: str,
+    replace: str
+) -> str:
+    """
+    Search and replace text in a campaign body (simple string matching).
+
+    This is much more token-efficient than updating the entire campaign body.
+
+    Args:
+        campaign_id: ID of the campaign to edit
+        search: Text to search for (exact string match)
+        replace: Text to replace it with
+
+    Returns:
+        Success message with number of replacements made
+
+    Example:
+        replace_in_campaign_body(
+            campaign_id=11,
+            search="</p>",
+            replace="</p>\n<img src='https://...' style='...'>"
+        )
+    """
+    async def _replace_logic() -> str:
+        client = get_client()
+
+        # Fetch current campaign
+        result = await client.get_campaign(campaign_id)
+        campaign = result.get("data", {})
+
+        if not campaign:
+            return f"Campaign {campaign_id} not found"
+
+        current_body = campaign.get("body", "")
+
+        # Perform replacement
+        new_body = current_body.replace(search, replace)
+        count = current_body.count(search)
+
+        if count == 0:
+            return f"Search text not found in campaign {campaign_id}"
+
+        # Update campaign with new body
+        await client.update_campaign(
+            campaign_id=campaign_id,
+            name=campaign.get("name"),
+            subject=campaign.get("subject"),
+            lists=[lst["id"] for lst in campaign.get("lists", [])],
+            body=new_body
+        )
+
+        return f"Successfully replaced {count} occurrence(s) in campaign {campaign_id}"
+
+    return await safe_execute_async(_replace_logic)  # type: ignore[no-any-return]
+
+
+@mcp.tool()
+async def regex_replace_in_campaign_body(
+    campaign_id: int,
+    pattern: str,
+    replace: str
+) -> str:
+    """
+    Search and replace in campaign body using regex patterns.
+
+    More powerful than simple replace - supports capturing groups and complex patterns.
+
+    Args:
+        campaign_id: ID of the campaign to edit
+        pattern: Regex pattern to search for
+        replace: Replacement string (can use \\1, \\2 for capture groups)
+
+    Returns:
+        Success message with number of replacements made
+
+    Example:
+        regex_replace_in_campaign_body(
+            campaign_id=11,
+            pattern=r"(Bondeni.*?</p>)",
+            replace=r"\\1\n<img src='https://...'>"
+        )
+    """
+    async def _regex_replace_logic() -> str:
+        import re
+
+        client = get_client()
+
+        # Fetch current campaign
+        result = await client.get_campaign(campaign_id)
+        campaign = result.get("data", {})
+
+        if not campaign:
+            return f"Campaign {campaign_id} not found"
+
+        current_body = campaign.get("body", "")
+
+        # Perform regex replacement
+        new_body, count = re.subn(pattern, replace, current_body)
+
+        if count == 0:
+            return f"Pattern not found in campaign {campaign_id}"
+
+        # Update campaign with new body
+        await client.update_campaign(
+            campaign_id=campaign_id,
+            name=campaign.get("name"),
+            subject=campaign.get("subject"),
+            lists=[lst["id"] for lst in campaign.get("lists", [])],
+            body=new_body
+        )
+
+        return f"Successfully replaced {count} match(es) in campaign {campaign_id}"
+
+    return await safe_execute_async(_regex_replace_logic)  # type: ignore[no-any-return]
+
+
+@mcp.tool()
+async def batch_replace_in_campaign_body(
+    campaign_id: int,
+    replacements: list[dict[str, str]]
+) -> str:
+    """
+    Perform multiple search-and-replace operations in one go.
+
+    Even more efficient - fetches campaign once, does all replacements, updates once.
+
+    Args:
+        campaign_id: ID of the campaign to edit
+        replacements: List of dicts with 'search' and 'replace' keys
+
+    Returns:
+        Success message with total replacements made
+
+    Example:
+        batch_replace_in_campaign_body(
+            campaign_id=11,
+            replacements=[
+                {"search": "Text A", "replace": "Text B"},
+                {"search": "Text C", "replace": "Text D"}
+            ]
+        )
+    """
+    async def _batch_replace_logic() -> str:
+        client = get_client()
+
+        # Fetch current campaign
+        result = await client.get_campaign(campaign_id)
+        campaign = result.get("data", {})
+
+        if not campaign:
+            return f"Campaign {campaign_id} not found"
+
+        current_body = campaign.get("body", "")
+        new_body = current_body
+        total_count = 0
+
+        # Perform all replacements
+        for replacement in replacements:
+            search = replacement.get("search", "")
+            replace = replacement.get("replace", "")
+
+            if not search:
+                continue
+
+            count = new_body.count(search)
+            new_body = new_body.replace(search, replace)
+            total_count += count
+
+        if total_count == 0:
+            return f"No search texts found in campaign {campaign_id}"
+
+        # Update campaign with new body
+        await client.update_campaign(
+            campaign_id=campaign_id,
+            name=campaign.get("name"),
+            subject=campaign.get("subject"),
+            lists=[lst["id"] for lst in campaign.get("lists", [])],
+            body=new_body
+        )
+
+        return f"Successfully completed {len(replacements)} replacement operation(s) with {total_count} total change(s) in campaign {campaign_id}"
+
+    return await safe_execute_async(_batch_replace_logic)  # type: ignore[no-any-return]
 
 
 # CLI application
