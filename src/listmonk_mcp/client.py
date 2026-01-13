@@ -454,7 +454,6 @@ class ListmonkClient:
         """
         from pathlib import Path
 
-        client = self._get_client()
         url = self._build_url("/api/media")
 
         file_path_obj = Path(file_path)
