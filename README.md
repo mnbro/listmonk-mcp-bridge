@@ -1,58 +1,271 @@
-# Listmonk MCP Server
+# Communications MCP for Listmonk
 
-An MCP (Model Context Protocol) server implementation for Listmonk, providing programmatic access to newsletter and mailing list management functionality.
+A production-ready [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server for [Listmonk](https://listmonk.app/), built to give AI assistants and automation agents structured access to newsletter, subscriber, mailing list, campaign, template, and reporting workflows.
 
-<image width=200px src="docs/logo.png" alt="Listmonk MCP Logo">
+<img width="200" src="docs/logo.png" alt="Communications MCP for Listmonk logo">
 
-## Project Status
+[![PyPI](https://img.shields.io/pypi/v/communications-mcp.svg)](https://pypi.org/project/communications-mcp/)
+[![Python](https://img.shields.io/pypi/pyversions/communications-mcp.svg)](https://pypi.org/project/communications-mcp/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-✅ **Implementation Complete** - The core MCP server is fully implemented and functional.
+## Origin and fork notice
 
-## Goal
+This repository began as an initial fork of [`rhnvrm/listmonk-mcp`](https://github.com/rhnvrm/listmonk-mcp).
 
-Create an MCP server that enables LLMs and AI assistants to interact with Listmonk instances through the Model Context Protocol. This will allow for:
+It has since evolved into `communications-mcp`: a production-ready MCP server for Listmonk with updated packaging, CLI entry points, environment-based configuration, validation, development tooling, and operational documentation suitable for real deployments.
 
-- Subscriber management (add, remove, update subscribers)
-- Mailing list operations (create, manage lists)
-- Campaign management (create, send newsletters)
+## Overview
+
+`communications-mcp` bridges MCP clients with the Listmonk REST API. It enables LLMs, AI assistants, and automation workflows to interact with Listmonk through a typed and predictable interface instead of ad-hoc HTTP calls.
+
+Typical use cases include:
+
+- Subscriber lookup, creation, updates, and lifecycle management
+- Mailing list discovery and management
+- Campaign creation, updates, and delivery workflows
+- Template and content operations
 - Analytics and reporting access
-- Template and content management
+- Agent-driven newsletter and communications automation
 
-## Architecture
+## What changed for production readiness
 
-This server will bridge the MCP protocol with Listmonk's REST API, providing a standardized interface for AI models to interact with Listmonk installations.
+Compared with the initial fork baseline, this package has been substantially updated, packaged, and hardened for production use under the `communications-mcp` package name.
+
+Production-focused improvements include:
+
+- PyPI-ready packaging with `uv`, `uvx`, `pip`, and console entry points
+- Environment-based configuration suitable for local, staging, and production deployments
+- Async HTTP operations for reliable Listmonk API communication
+- Pydantic-based validation for safer input and output handling
+- CLI entry points via both `communications-mcp` and `listmonk-mcp`
+- Development tooling with Ruff, mypy, pytest, and build validation
+- Release workflow support for publishing to PyPI and GitHub releases
+- Clear operational notes for credentials, API tokens, and production safety
 
 ## Features
 
-- **Complete Listmonk API Coverage**: All major Listmonk operations supported
-- **18 MCP Tools**: Comprehensive subscriber, list, campaign, and template management
-- **MCP Resources**: Easy access to subscriber, list, campaign, and template data
-- **Async Operations**: Built with modern async/await patterns
-- **Type Safety**: Full Pydantic model validation
-- **Environment Configuration**: Easy setup with environment variables
+- **Broad Listmonk API coverage** for subscriber, list, campaign, and template workflows
+- **18 MCP tools** covering common newsletter management operations
+- **MCP resources** for structured access to Listmonk data
+- **Async-first implementation** built on modern Python patterns
+- **Type-safe models** using Pydantic validation
+- **Environment-driven configuration** for local, staging, and production environments
+- **Developer tooling** with Ruff, mypy, pytest, Black, and build checks
+
+## Requirements
+
+- Python 3.11 or newer
+- A running Listmonk instance
+- A Listmonk API user and API token
+- One of the following package runners or installers:
+  - `uv` / `uvx` recommended
+  - `pip`
 
 ## Installation
 
-### Using uvx (Recommended)
+### Run with `uvx` recommended
 
-Install and run directly from PyPI without managing dependencies:
+Run the server directly from PyPI without manually managing a virtual environment:
 
 ```bash
-# Run directly (installs if needed)
 uvx communications-mcp --help
+```
 
-# Or install globally
+Install it as a globally available tool:
+
+```bash
 uvx install communications-mcp
 communications-mcp --help
 ```
 
-### Using pip
+### Install with `pip`
 
 ```bash
 pip install communications-mcp
 ```
 
-### Development Installation
+After installation, the following commands are available:
+
+```bash
+communications-mcp --help
+listmonk-mcp --help
+```
+
+## Configuration
+
+The server is configured through environment variables.
+
+| Variable | Required | Description | Example |
+| --- | --- | --- | --- |
+| `LISTMONK_MCP_URL` | Yes | Base URL of your Listmonk instance | `https://listmonk.example.com` |
+| `LISTMONK_MCP_USERNAME` | Yes | Listmonk API username | `api-user` |
+| `LISTMONK_MCP_PASSWORD` | Yes | Listmonk API token, not the account login password | `your-api-token` |
+
+Example local configuration:
+
+```bash
+export LISTMONK_MCP_URL=http://localhost:9000
+export LISTMONK_MCP_USERNAME=api-user
+export LISTMONK_MCP_PASSWORD=your-generated-api-token
+```
+
+Listmonk token authentication uses the following format internally:
+
+```http
+Authorization: token username:api_token
+```
+
+## Quick start
+
+### 1. Start Listmonk locally
+
+For local development and testing, you can run Listmonk with Docker.
+
+Using the compose file included in this repository:
+
+```bash
+docker compose -f docs/listmonk-docker-compose.yml up -d
+```
+
+Or using the official Listmonk compose file:
+
+```bash
+curl -LO https://github.com/knadh/listmonk/raw/master/docker-compose.yml
+docker compose up -d
+```
+
+Listmonk should be available at:
+
+```text
+http://localhost:9000
+```
+
+Default local credentials are typically:
+
+```text
+admin / listmonk
+```
+
+### 2. Create a dedicated Listmonk API user
+
+1. Open the Listmonk admin interface.
+2. Navigate to **Admin → Users**.
+3. Create a dedicated API user, for example `api-user`.
+4. Assign only the permissions required by your MCP workflows.
+5. Generate an API token for that user.
+6. Use that token as `LISTMONK_MCP_PASSWORD`.
+
+For production deployments, avoid using the default admin account. Create a dedicated API user with the minimum permissions required.
+
+### 3. Export environment variables
+
+```bash
+export LISTMONK_MCP_URL=http://localhost:9000
+export LISTMONK_MCP_USERNAME=api-user
+export LISTMONK_MCP_PASSWORD=your-generated-api-token
+```
+
+### 4. Run the MCP server
+
+With the installed console command:
+
+```bash
+communications-mcp
+```
+
+Or through `uv` during development:
+
+```bash
+uv run communications-mcp
+```
+
+You can also run the Python module directly:
+
+```bash
+uv run python -m listmonk_mcp.server
+```
+
+## MCP client configuration
+
+Most MCP clients can start this server as a local command. A typical configuration looks like this:
+
+```json
+{
+  "mcpServers": {
+    "communications-mcp": {
+      "command": "uvx",
+      "args": ["communications-mcp"],
+      "env": {
+        "LISTMONK_MCP_URL": "https://listmonk.example.com",
+        "LISTMONK_MCP_USERNAME": "api-user",
+        "LISTMONK_MCP_PASSWORD": "your-api-token"
+      }
+    }
+  }
+}
+```
+
+If you installed the package globally, you can also use:
+
+```json
+{
+  "mcpServers": {
+    "communications-mcp": {
+      "command": "communications-mcp",
+      "env": {
+        "LISTMONK_MCP_URL": "https://listmonk.example.com",
+        "LISTMONK_MCP_USERNAME": "api-user",
+        "LISTMONK_MCP_PASSWORD": "your-api-token"
+      }
+    }
+  }
+}
+```
+
+## Production notes
+
+Before using this server in production, review the following recommendations:
+
+- Use HTTPS for your Listmonk instance.
+- Use a dedicated API user instead of an admin user.
+- Apply least-privilege permissions wherever possible.
+- Store credentials in your deployment secret manager, not in source control.
+- Rotate API tokens periodically.
+- Test campaign-related workflows against a staging Listmonk instance first.
+- Monitor Listmonk API logs for unexpected agent behavior.
+- Review any AI-generated campaign or subscriber changes before enabling fully automated flows.
+
+## Troubleshooting
+
+### Verify environment variables
+
+```bash
+echo "$LISTMONK_MCP_URL"
+echo "$LISTMONK_MCP_USERNAME"
+```
+
+Avoid printing API tokens in shared terminals, CI logs, or screenshots.
+
+### Test Listmonk API access
+
+```bash
+curl \
+  -H "Authorization: token ${LISTMONK_MCP_USERNAME}:${LISTMONK_MCP_PASSWORD}" \
+  "${LISTMONK_MCP_URL}/api/health"
+```
+
+### Common issues
+
+| Problem | Likely cause | Fix |
+| --- | --- | --- |
+| `Connection refused` | Listmonk is not running or the URL is wrong | Check `LISTMONK_MCP_URL` and Listmonk availability |
+| `403` or `invalid session` | Invalid username/token or insufficient permissions | Regenerate the API token and verify the API user permissions |
+| `Module not found` | Development dependencies are not installed | Run `uv sync --extra dev` |
+| CLI command not found | Package not installed in the active environment | Use `uvx communications-mcp` or reinstall the package |
+
+## Development
+
+Clone the repository and install development dependencies:
 
 ```bash
 git clone https://github.com/ediblelandscapecreators/communications-mcp.git
@@ -60,124 +273,97 @@ cd communications-mcp
 uv sync --extra dev
 ```
 
-## Development
-
-### Code Quality Checks
-
-Run the same checks that are executed in the CI/CD pipeline:
+Run the development server:
 
 ```bash
-# Install development dependencies
-uv sync --extra dev
-
-# Run linting (same as CI)
-uv run ruff check src/
-
-# Auto-fix linting issues
-uv run ruff check src/ --fix
-
-# Run type checking (same as CI)
-uv run mypy src/
-
-# Run all checks together
-uv run ruff check src/ && uv run mypy src/
-```
-
-### Building and Testing
-
-```bash
-# Build the package (same as CI)
-uv build
-
-# Test CLI locally (using entry point)
 uv run communications-mcp --help
 uv run communications-mcp --version
-
-# Or install locally and test
-uv pip install -e .
-communications-mcp --help
 ```
 
-### Version Management
+### Code quality
+
+Run linting:
+
+```bash
+uv run ruff check src/
+```
+
+Automatically fix lint issues where possible:
+
+```bash
+uv run ruff check src/ --fix
+```
+
+Run type checking:
+
+```bash
+uv run mypy src/
+```
+
+Run tests:
+
+```bash
+uv run pytest
+```
+
+Run the main quality checks together:
+
+```bash
+uv run ruff check src/ && uv run mypy src/ && uv run pytest
+```
+
+### Build locally
+
+```bash
+uv build
+```
+
+Validate the built distribution before publishing:
+
+```bash
+uvx twine check dist/*
+```
+
+## Release process
 
 To release a new version:
 
 ```bash
-# 1. Update version in pyproject.toml (e.g., 0.0.1 -> 0.0.2)
-# 2. Commit and tag
+# 1. Update the version in pyproject.toml
+# Example: 0.2.0 -> 0.2.1
+
+# 2. Commit the version bump
 git add pyproject.toml
-git commit -m "chore: bump version to 0.0.2"
-git tag v0.0.2
+git commit -m "chore: bump version to 0.2.1"
+
+# 3. Tag the release
+git tag v0.2.1
+
+# 4. Push the branch and tag
 git push origin master
-git push origin v0.0.2
-
-# GitHub Actions will automatically:
-# - Run linting and type checking
-# - Build and publish to PyPI  
-# - Create GitHub release with auto-generated notes
+git push origin v0.2.1
 ```
 
-## Quick Start
+If GitHub Actions is configured, the release pipeline can run checks, build the package, publish to PyPI, and create a GitHub release.
 
-### 1. Set up Listmonk (Local Development)
+## Security
 
-For testing, you can run a local Listmonk instance using Docker:
+This package can perform real operations against your Listmonk instance, including subscriber and campaign changes. Treat access to the MCP server as privileged access.
 
-```bash
-# Option 1: Use the provided compose file
-docker compose -f docs/listmonk-docker-compose.yml up -d
+Recommended safeguards:
 
-# Option 2: Download the latest compose file
-curl -LO https://github.com/knadh/listmonk/raw/master/docker-compose.yml
-docker compose up -d
+- Run the server only in trusted environments.
+- Keep API credentials out of repository files and logs.
+- Limit token permissions according to the workflows you actually need.
+- Prefer staging environments when testing new automations or agent behavior.
+- Review generated campaign content before sending to real audiences.
 
-# Access Listmonk at http://localhost:9000
-# Default credentials: admin / listmonk
-```
+## Attribution
 
-### 2. Create API User and Token
+This project was initially forked from [`rhnvrm/listmonk-mcp`](https://github.com/rhnvrm/listmonk-mcp). The current `communications-mcp` package has been modified and extended for production-oriented packaging, configuration, validation, and operational use.
 
-1. Access the Listmonk admin interface at http://localhost:9000/admin
-2. Login with the default credentials: `admin` / `listmonk`
-3. Navigate to **Admin → Users** (http://localhost:9000/admin/users)
-4. Create a new API user:
-   - Click "Add new"
-   - Enter a username (e.g., `api-user`)
-   - Assign appropriate role/permissions
-   - Save the user
-5. Generate an API token:
-   - Click on the created user
-   - Click "Generate API token"
-   - Copy the generated token
+Listmonk is an independent open-source project. This package is not officially affiliated with or endorsed by the Listmonk maintainers.
 
-### 3. Configure Environment Variables
+## License
 
-The MCP server requires the following environment variables:
-
-```bash
-export LISTMONK_MCP_URL=http://localhost:9000
-export LISTMONK_MCP_USERNAME=your-api-username
-export LISTMONK_MCP_PASSWORD=your-generated-api-token
-```
-
-**Important**: The password field should contain the API token (not the user's login password). The server uses Listmonk's token authentication format: `Authorization: token username:api_token`.
-
-**Troubleshooting Configuration**:
-- **Verify variables**: `echo $LISTMONK_MCP_URL` should show your Listmonk URL
-- **Test API access**: `curl -H "Authorization: token username:api_token" http://localhost:9000/api/health`
-- **Common errors**: "invalid session" or 403 errors indicate incorrect credentials
-
-### 4. Run the MCP Server
-
-```bash
-# Using uv (recommended)
-uv run python -m listmonk_mcp.server
-
-# Or using the entry point
-communications-mcp
-```
-
-**Common Issues**:
-- **Connection refused**: Listmonk server not running or wrong URL
-- **Module not found**: Install dependencies with `uv install` or `pip install -e .`
-
+This project is licensed under the MIT License. See [`LICENSE`](LICENSE) for details.
