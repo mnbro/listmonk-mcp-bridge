@@ -1,11 +1,14 @@
 """Exception classes for the Listmonk MCP server."""
 
+import logging
 from typing import Any
 
 import httpx
 
 # Import ListmonkAPIError from client module
 from .client import ListmonkAPIError
+
+logger = logging.getLogger(__name__)
 
 
 class ListmonkMCPError(Exception):
@@ -304,8 +307,15 @@ def convert_listmonk_api_error(error: Exception) -> ListmonkMCPError:
 
     # Handle the existing ListmonkAPIError from client.py
     if hasattr(error, 'status_code') and hasattr(error, 'response'):
+        status_code = getattr(error, "status_code", None)
+        if not isinstance(status_code, int):
+            return APIError(
+                message=str(error),
+                response_data=getattr(error, "response", None) or {},
+            )
+
         return map_http_status_to_exception(
-            status_code=error.status_code,
+            status_code=status_code,
             message=str(error),
             response_data=error.response if hasattr(error, 'response') else None
         )
@@ -355,9 +365,13 @@ async def safe_execute_async(func: Any, *args: Any, **kwargs: Any) -> Any:
         result = await func(*args, **kwargs)
         return result
     except ListmonkAPIError as e:
-        error_details = convert_listmonk_api_error(e).to_dict()
-        return f"Error: {error_details['error_type']} - {error_details['message']}"
+        return format_mcp_error(convert_listmonk_api_error(e))
     except Exception as e:
-        import traceback
-        tb = traceback.format_exc()
-        return f"Unexpected error: {str(e)}\n\nTraceback:\n{tb}"
+        logger.exception("Unexpected error while executing MCP tool")
+        return format_mcp_error(
+            OperationError(
+                message="Unexpected error while executing MCP tool",
+                operation=getattr(func, "__name__", None),
+                details={"error": str(e)},
+            )
+        )

@@ -3,6 +3,8 @@ from typing import Any
 import pytest
 
 from listmonk_mcp import server
+from listmonk_mcp.client import ListmonkAPIError
+from listmonk_mcp.exceptions import safe_execute_async
 
 
 class FakeListmonkClient:
@@ -61,3 +63,34 @@ async def test_get_list_subscribers_tool_returns_subscribers(monkeypatch: pytest
             },
         ],
     }
+
+
+@pytest.mark.asyncio
+async def test_safe_execute_async_returns_structured_api_errors() -> None:
+    async def failing_tool() -> None:
+        raise ListmonkAPIError("connection failed")
+
+    result = await safe_execute_async(failing_tool)
+
+    assert result == {
+        "success": False,
+        "error": {
+            "error_type": "APIError",
+            "message": "connection failed",
+        },
+    }
+
+
+@pytest.mark.asyncio
+async def test_safe_execute_async_does_not_return_traceback() -> None:
+    async def failing_tool() -> None:
+        raise RuntimeError("boom")
+
+    result = await safe_execute_async(failing_tool)
+
+    assert result["success"] is False
+    assert result["error"]["error_type"] == "OperationError"
+    assert result["error"]["message"] == "Unexpected error while executing MCP tool"
+    assert result["error"]["operation"] == "failing_tool"
+    assert result["error"]["details"] == {"error": "boom"}
+    assert "Traceback" not in str(result)

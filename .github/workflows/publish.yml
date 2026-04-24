@@ -30,10 +30,13 @@ jobs:
       run: uv sync --extra dev
       
     - name: Run linting
-      run: uv run ruff check src/
+      run: uv run ruff check .
+
+    - name: Run tests
+      run: uv run python -m pytest
       
     - name: Run type checking
-      run: uv run mypy src/
+      run: uv run python -m mypy src tests
       
     - name: Build package
       run: uv build

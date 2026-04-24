@@ -4,14 +4,28 @@ build-backend = "hatchling.build"
 
 [project]
 name = "communications-mcp"
-version = "0.1.0"
+version = "0.1.1"
 description = "MCP server for Listmonk newsletter management"
 authors = [
     { name = "Rohan Verma", email = "hello@rohanverma.net" }
 ]
+maintainers = [
+    { name = "Edible Landscape Creators" }
+]
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"
+keywords = ["listmonk", "mcp", "newsletter", "email-marketing", "model-context-protocol"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Communications :: Email",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
 
 dependencies = [
     "mcp>=1.2.0",
@@ -39,6 +53,12 @@ docs = [
 [project.scripts]
 communications-mcp = "listmonk_mcp.server:main"
 listmonk-mcp = "listmonk_mcp.server:main"
+
+[project.urls]
+Homepage = "https://github.com/ediblelandscapecreators/communications-mcp"
+Repository = "https://github.com/ediblelandscapecreators/communications-mcp"
+Issues = "https://github.com/ediblelandscapecreators/communications-mcp/issues"
+Documentation = "https://ediblelandscapecreators.github.io/communications-mcp/"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/listmonk_mcp"]
