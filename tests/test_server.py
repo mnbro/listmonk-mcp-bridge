@@ -35,6 +35,36 @@ class FakeListmonkClient:
         }
 
 
+def test_create_production_server_returns_registered_server() -> None:
+    assert server.create_production_server() is server.mcp
+
+
+def test_success_response() -> None:
+    assert server.success_response("Done", resource_id=42) == {
+        "success": True,
+        "message": "Done",
+        "resource_id": 42,
+    }
+
+
+def test_collection_response() -> None:
+    assert server.collection_response(
+        "subscribers",
+        [{"id": 1}],
+        total=10,
+        page=2,
+        per_page=1,
+    ) == {
+        "success": True,
+        "resource": "subscribers",
+        "count": 1,
+        "items": [{"id": 1}],
+        "total": 10,
+        "page": 2,
+        "per_page": 1,
+    }
+
+
 @pytest.mark.asyncio
 async def test_get_list_subscribers_tool_returns_subscribers(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(server, "get_client", lambda: FakeListmonkClient())
