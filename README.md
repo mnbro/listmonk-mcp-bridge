@@ -39,24 +39,24 @@ Install and run directly from PyPI without managing dependencies:
 
 ```bash
 # Run directly (installs if needed)
-uvx listmonk-mcp --help
+uvx communications-mcp --help
 
 # Or install globally
-uvx install listmonk-mcp
-listmonk-mcp --help
+uvx install communications-mcp
+communications-mcp --help
 ```
 
 ### Using pip
 
 ```bash
-pip install listmonk-mcp
+pip install communications-mcp
 ```
 
 ### Development Installation
 
 ```bash
-git clone https://github.com/rhnvrm/listmonk-mcp.git
-cd listmonk-mcp
+git clone https://github.com/ediblelandscapecreators/communications-mcp.git
+cd communications-mcp
 uv sync --extra dev
 ```
 
@@ -90,12 +90,12 @@ uv run ruff check src/ && uv run mypy src/
 uv build
 
 # Test CLI locally (using entry point)
-uv run listmonk-mcp --help
-uv run listmonk-mcp --version
+uv run communications-mcp --help
+uv run communications-mcp --version
 
 # Or install locally and test
 uv pip install -e .
-listmonk-mcp --help
+communications-mcp --help
 ```
 
 ### Version Management
@@ -174,7 +174,7 @@ export LISTMONK_MCP_PASSWORD=your-generated-api-token
 uv run python -m listmonk_mcp.server
 
 # Or using the entry point
-listmonk-mcp
+communications-mcp
 ```
 
 **Common Issues**:

@@ -16,8 +16,8 @@ An MCP (Model Context Protocol) server for Listmonk, providing programmatic acce
 
 1. **Install the server:**
    ```bash
-   git clone https://github.com/rhnvrm/listmonk-mcp.git
-   cd listmonk-mcp
+   git clone https://github.com/ediblelandscapecreators/communications-mcp.git
+   cd communications-mcp
    ```
 
 2. **Create API credentials in Listmonk:**
@@ -38,7 +38,7 @@ All setups use the same basic configuration format:
 {
   "command": "uv",
   "args": ["run", "python", "-m", "listmonk_mcp.server"],
-  "cwd": "/path/to/listmonk-mcp",
+  "cwd": "/path/to/communications-mcp",
   "env": {
     "LISTMONK_MCP_URL": "http://localhost:9000",
     "LISTMONK_MCP_USERNAME": "your-api-username", 

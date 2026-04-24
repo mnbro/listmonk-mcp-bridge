@@ -1514,7 +1514,7 @@ async def batch_replace_in_campaign_body(
 
 # CLI application
 cli_app = typer.Typer(
-    name="listmonk-mcp",
+    name="communications-mcp",
     help="Listmonk MCP Server - Connect Claude Code to Listmonk via Model Context Protocol",
     add_completion=False
 )
@@ -1559,10 +1559,10 @@ def run(
         # Import here to avoid circular imports
         try:
             from importlib.metadata import version as get_version
-            pkg_version = get_version("listmonk-mcp")
+            pkg_version = get_version("communications-mcp")
         except ImportError:
             pkg_version = "0.0.1"  # fallback
-        typer.echo(f"listmonk-mcp {pkg_version}")
+        typer.echo(f"communications-mcp {pkg_version}")
         raise typer.Exit()
 
     if debug:

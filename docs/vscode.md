@@ -12,7 +12,7 @@ Add to your `~/.config/Code/User/settings.json`:
     "servers": {
       "listmonk": {
         "command": "uvx",
-        "args": ["listmonk-mcp"],
+        "args": ["communications-mcp"],
         "env": {
           "LISTMONK_MCP_URL": "http://localhost:9000",
           "LISTMONK_MCP_USERNAME": "your-api-username",

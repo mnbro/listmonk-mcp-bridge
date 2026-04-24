@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "listmonk-mcp"
+name = "communications-mcp"
 version = "0.1.0"
 description = "MCP server for Listmonk newsletter management"
 authors = [
@@ -37,6 +37,7 @@ docs = [
 ]
 
 [project.scripts]
+communications-mcp = "listmonk_mcp.server:main"
 listmonk-mcp = "listmonk_mcp.server:main"
 
 [tool.hatch.build.targets.wheel]

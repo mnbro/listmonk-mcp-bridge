@@ -20,24 +20,24 @@ Install and run directly from PyPI:
 
 ```bash
 # Run directly (installs if needed)
-uvx listmonk-mcp --help
+uvx communications-mcp --help
 
 # Or install globally
-uvx install listmonk-mcp
-listmonk-mcp --help
+uvx install communications-mcp
+communications-mcp --help
 ```
 
 ### Using pip
 
 ```bash
-pip install listmonk-mcp
+pip install communications-mcp
 ```
 
 ## Quick Start
 
 1. **Install the server using uvx:**
    ```bash
-   uvx install listmonk-mcp
+   uvx install communications-mcp
    ```
 
 2. **Create API credentials in Listmonk:**
@@ -58,7 +58,7 @@ All setups use the same basic configuration format:
 {
   "command": "uv",
   "args": ["run", "python", "-m", "listmonk_mcp.server"],
-  "cwd": "/path/to/listmonk-mcp",
+  "cwd": "/path/to/communications-mcp",
   "env": {
     "LISTMONK_MCP_URL": "http://localhost:9000",
     "LISTMONK_MCP_USERNAME": "your-api-username", 
