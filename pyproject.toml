@@ -58,7 +58,7 @@ listmonk-mcp = "listmonk_mcp.server:main"
 Homepage = "https://github.com/ediblelandscapecreators/communications-mcp"
 Repository = "https://github.com/ediblelandscapecreators/communications-mcp"
 Issues = "https://github.com/ediblelandscapecreators/communications-mcp/issues"
-Documentation = "https://ediblelandscapecreators.github.io/communications-mcp/"
+Documentation = "https://github.com/ediblelandscapecreators/communications-mcp/docs"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/listmonk_mcp"]
