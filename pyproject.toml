@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "communications-mcp"
-version = "0.2.1"
+version = "0.2.2"
 description = "Production-ready MCP server for Listmonk newsletter and mailing list management"
 authors = [
     { name = "Rohan Verma", email = "hello@rohanverma.net" }
@@ -58,7 +58,7 @@ listmonk-mcp = "listmonk_mcp.server:main"
 Homepage = "https://github.com/ediblelandscapecreators/communications-mcp"
 Repository = "https://github.com/ediblelandscapecreators/communications-mcp"
 Issues = "https://github.com/ediblelandscapecreators/communications-mcp/issues"
-Documentation = "https://github.com/ediblelandscapecreators/communications-mcp/docs"
+Documentation = "https://github.com/ediblelandscapecreators/communications-mcp/master/docs"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/listmonk_mcp"]
