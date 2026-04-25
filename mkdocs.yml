@@ -1,10 +1,10 @@
 site_name: Listmonk MCP Server
 site_description: MCP server for Listmonk newsletter management
 site_author: Rohan Verma
-site_url: https://ediblelandscapecreators.github.io/communications-mcp/
+site_url: https://mnbro.github.io/listmonk-mcp-bridge/
 
-repo_name: ediblelandscapecreators/communications-mcp
-repo_url: https://github.com/ediblelandscapecreators/communications-mcp
+repo_name: mnbro/listmonk-mcp-bridge
+repo_url: https://github.com/mnbro/listmonk-mcp-bridge
 
 theme:
   name: material
@@ -63,5 +63,5 @@ plugins:
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/ediblelandscapecreators/communications-mcp
+      link: https://github.com/mnbro/listmonk-mcp-bridge
   generator: false

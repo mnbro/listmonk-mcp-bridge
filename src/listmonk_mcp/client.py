@@ -1,6 +1,7 @@
 """Listmonk API client abstraction using httpx."""
 
 import asyncio
+from html import escape
 from typing import Any
 from urllib.parse import urljoin
 
@@ -8,6 +9,23 @@ import httpx
 from httpx import AsyncClient, Response
 
 from .config import Config
+
+
+def normalize_body(
+    body: str,
+    content_type: str,
+    auto_convert_plain_to_html: bool = True,
+) -> tuple[str, str]:
+    """Normalize campaign body content before sending it to Listmonk."""
+    if content_type != "plain" or not auto_convert_plain_to_html:
+        return body, content_type
+
+    paragraphs = []
+    for raw_paragraph in body.split("\n\n"):
+        escaped = escape(raw_paragraph).replace("\n", "<br>")
+        paragraphs.append(f"<p>{escaped}</p>")
+
+    return "".join(paragraphs), "html"
 
 
 class ListmonkAPIError(Exception):
@@ -300,9 +318,17 @@ class ListmonkClient:
         content_type: str = "richtext",
         body: str | None = None,
         template_id: int | None = None,
-        tags: list[str] | None = None
+        tags: list[str] | None = None,
+        auto_convert_plain_to_html: bool = True
     ) -> dict[str, Any]:
         """Create a new campaign."""
+        if body is not None:
+            body, content_type = normalize_body(
+                body,
+                content_type,
+                auto_convert_plain_to_html,
+            )
+
         data: dict[str, Any] = {
             "name": name,
             "subject": subject,
@@ -376,6 +402,7 @@ class ListmonkClient:
     async def create_template(
         self,
         name: str,
+        subject: str,
         body: str,
         type: str = "campaign",
         is_default: bool = False
@@ -383,6 +410,7 @@ class ListmonkClient:
         """Create a new email template."""
         data = {
             "name": name,
+            "subject": subject,
             "body": body,
             "type": type,
             "is_default": is_default
@@ -393,6 +421,7 @@ class ListmonkClient:
         self,
         template_id: int,
         name: str | None = None,
+        subject: str | None = None,
         body: str | None = None,
         is_default: bool | None = None
     ) -> dict[str, Any]:
@@ -409,6 +438,7 @@ class ListmonkClient:
         # IMPORTANT: type must be included, otherwise Listmonk validates as transactional template
         data: dict[str, Any] = {
             "name": name if name is not None else template_data.get("name", ""),
+            "subject": subject if subject is not None else template_data.get("subject", ""),
             "type": template_data.get("type", "campaign"),
             "body": body if body is not None else template_data.get("body", ""),
             "is_default": is_default if is_default is not None else template_data.get("is_default", False),

@@ -163,6 +163,7 @@ class Template(TimestampedModel):
 
     id: int = Field(..., description="Unique template ID")
     name: str = Field(..., min_length=1, max_length=200, description="Template name")
+    subject: str = Field(..., min_length=1, max_length=500, description="Default template subject")
     body: str = Field(..., min_length=1, description="Template HTML body")
     type: TemplateTypeEnum = Field(default=TemplateTypeEnum.campaign, description="Template type")
     is_default: bool = Field(default=False, description="Whether this is the default template")
@@ -251,6 +252,10 @@ class CreateCampaignModel(BaseModel):
     content_type: ContentTypeEnum = Field(default=ContentTypeEnum.richtext, description="Content format")
     from_email: EmailStr | None = Field(None, description="From email address")
     body: str | None = Field(None, description="Campaign body content")
+    auto_convert_plain_to_html: bool = Field(
+        default=True,
+        description="Convert plain text bodies to escaped HTML paragraphs before sending",
+    )
     altbody: str | None = Field(None, description="Plain text alternative body")
     template_id: int | None = Field(None, description="Template ID to use")
     tags: list[str] = Field(default_factory=list, description="Campaign tags")
@@ -313,6 +318,7 @@ class CreateTemplateModel(BaseModel):
     """Model for creating a new template."""
 
     name: str = Field(..., min_length=1, max_length=200, description="Template name")
+    subject: str = Field(..., min_length=1, max_length=500, description="Default template subject")
     body: str = Field(..., min_length=1, description="Template HTML body")
     type: TemplateTypeEnum = Field(default=TemplateTypeEnum.campaign, description="Template type")
     is_default: bool = Field(default=False, description="Whether this is the default template")
@@ -322,6 +328,7 @@ class UpdateTemplateModel(BaseModel):
     """Model for updating an existing template."""
 
     name: str | None = Field(None, min_length=1, max_length=200, description="New template name")
+    subject: str | None = Field(None, min_length=1, max_length=500, description="New template subject")
     body: str | None = Field(None, min_length=1, description="New template HTML body")
     is_default: bool | None = Field(None, description="Whether this is the default template")
 
@@ -402,6 +409,4 @@ class HealthCheckResponse(BaseModel):
     status: str = Field(..., description="Health status")
     version: str | None = Field(None, description="Listmonk version")
     build: str | None = Field(None, description="Build information")
-
-
 

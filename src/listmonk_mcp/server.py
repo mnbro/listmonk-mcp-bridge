@@ -564,7 +564,8 @@ async def create_campaign(
     content_type: str = "richtext",
     body: str | None = None,
     template_id: int | None = None,
-    tags: list[str] | None = None
+    tags: list[str] | None = None,
+    auto_convert_plain_to_html: bool = True
 ) -> dict[str, Any]:
     """
     Create a new email campaign.
@@ -578,6 +579,8 @@ async def create_campaign(
         body: Campaign content body
         template_id: Template ID to use (optional)
         tags: Campaign tags
+        auto_convert_plain_to_html: Convert plain text bodies to escaped HTML paragraphs by default.
+            Set false to send plain content unchanged.
     """
     async def _create_campaign_logic() -> dict[str, Any]:
         client = get_client()
@@ -589,7 +592,8 @@ async def create_campaign(
             content_type=content_type,
             body=body,
             template_id=template_id,
-            tags=tags or []
+            tags=tags or [],
+            auto_convert_plain_to_html=auto_convert_plain_to_html
         )
 
         campaign_data = result.get("data", {})
@@ -962,6 +966,7 @@ async def get_template(template_id: int) -> dict[str, Any]:
 @mcp.tool()
 async def create_template(
     name: str,
+    subject: str,
     body: str,
     type: str = "campaign",
     is_default: bool = False
@@ -971,6 +976,7 @@ async def create_template(
 
     Args:
         name: Template name
+        subject: Default subject required by the Listmonk templates API
         body: Template HTML body content
         type: Template type (campaign, tx)
         is_default: Whether this is the default template
@@ -979,6 +985,7 @@ async def create_template(
         client = get_client()
         result = await client.create_template(
             name=name,
+            subject=subject,
             body=body,
             type=type,
             is_default=is_default
@@ -999,6 +1006,7 @@ async def create_template(
 async def update_template(
     template_id: int,
     name: str | None = None,
+    subject: str | None = None,
     body: str | None = None,
     is_default: bool | None = None
 ) -> dict[str, Any]:
@@ -1008,6 +1016,7 @@ async def update_template(
     Args:
         template_id: ID of the template to update
         name: New template name
+        subject: New default template subject
         body: New template HTML body content
         is_default: Whether this is the default template
     """
@@ -1016,6 +1025,7 @@ async def update_template(
         result = await client.update_template(
             template_id=template_id,
             name=name,
+            subject=subject,
             body=body,
             is_default=is_default
         )
@@ -1597,7 +1607,7 @@ async def batch_replace_in_campaign_body(
 
 # CLI application
 cli_app = typer.Typer(
-    name="communications-mcp",
+    name="listmonk-mcp-bridge",
     help="Listmonk MCP Server - Connect Claude Code to Listmonk via Model Context Protocol",
     add_completion=False
 )
@@ -1642,10 +1652,10 @@ def run(
         # Import here to avoid circular imports
         try:
             from importlib.metadata import version as get_version
-            pkg_version = get_version("communications-mcp")
+            pkg_version = get_version("listmonk-mcp-bridge")
         except ImportError:
             pkg_version = "0.0.1"  # fallback
-        typer.echo(f"communications-mcp {pkg_version}")
+        typer.echo(f"listmonk-mcp-bridge {pkg_version}")
         raise typer.Exit()
 
     if debug:

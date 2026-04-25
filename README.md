@@ -1,22 +1,17 @@
-# Communications MCP for Listmonk
+# Listmonk MCP Bridge
 
 A production-ready [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server for [Listmonk](https://listmonk.app/), built to give AI assistants and automation agents structured access to newsletter, subscriber, mailing list, campaign, template, and reporting workflows.
 
-<img width="200" src="docs/logo.png" alt="Communications MCP for Listmonk logo">
-
-[![PyPI](https://img.shields.io/pypi/v/communications-mcp.svg)](https://pypi.org/project/communications-mcp/)
-[![Python](https://img.shields.io/pypi/pyversions/communications-mcp.svg)](https://pypi.org/project/communications-mcp/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ## Origin and fork notice
 
 This repository began as an initial fork of [`rhnvrm/listmonk-mcp`](https://github.com/rhnvrm/listmonk-mcp).
 
-It has since evolved into `communications-mcp`: a production-ready MCP server for Listmonk with updated packaging, CLI entry points, environment-based configuration, validation, development tooling, and operational documentation suitable for real deployments.
+It has since evolved into `listmonk-mcp-bridge`: a production-ready MCP server for Listmonk with updated packaging, CLI entry points, environment-based configuration, validation, development tooling, and operational documentation suitable for real deployments.
 
 ## Overview
 
-`communications-mcp` bridges MCP clients with the Listmonk REST API. It enables LLMs, AI assistants, and automation workflows to interact with Listmonk through a typed and predictable interface instead of ad-hoc HTTP calls.
+`listmonk-mcp-bridge` bridges MCP clients with the Listmonk REST API. It enables LLMs, AI assistants, and automation workflows to interact with Listmonk through a typed and predictable interface instead of ad-hoc HTTP calls.
 
 Typical use cases include:
 
@@ -29,7 +24,7 @@ Typical use cases include:
 
 ## What changed for production readiness
 
-Compared with the initial fork baseline, this package has been substantially updated, packaged, and hardened for production use under the `communications-mcp` package name.
+Compared with the initial fork baseline, this package has been substantially updated, packaged, and hardened for production use under the `listmonk-mcp-bridge` package name.
 
 Production-focused improvements include:
 
@@ -37,7 +32,7 @@ Production-focused improvements include:
 - Environment-based configuration suitable for local, staging, and production deployments
 - Async HTTP operations for reliable Listmonk API communication
 - Pydantic-based validation for safer input and output handling
-- CLI entry points via both `communications-mcp` and `listmonk-mcp`
+- CLI entry points via both `listmonk-mcp-bridge` and `listmonk-mcp`
 - Development tooling with Ruff, mypy, pytest, and build validation
 - Release workflow support for publishing to PyPI and GitHub releases
 - Clear operational notes for credentials, API tokens, and production safety
@@ -51,6 +46,12 @@ Production-focused improvements include:
 - **Type-safe models** using Pydantic validation
 - **Environment-driven configuration** for local, staging, and production environments
 - **Developer tooling** with Ruff, mypy, pytest, Black, and build checks
+
+## Tool behavior notes
+
+- `update_subscriber` supports partial updates. Omitted fields are not sent to Listmonk, so changing only `name`, `status`, `lists`, or `attributes` does not require an `email`.
+- `create_template` requires `subject`, matching the Listmonk templates API for both campaign and transactional (`tx`) templates.
+- `create_campaign` converts `content_type="plain"` bodies into escaped HTML paragraphs by default with `auto_convert_plain_to_html=True`. Set `auto_convert_plain_to_html=False` to send plain text unchanged. HTML bodies are always left unchanged.
 
 ## Requirements
 
@@ -68,26 +69,26 @@ Production-focused improvements include:
 Run the server directly from PyPI without manually managing a virtual environment:
 
 ```bash
-uvx communications-mcp --help
+uvx listmonk-mcp-bridge --help
 ```
 
 Install it as a globally available tool:
 
 ```bash
-uvx install communications-mcp
-communications-mcp --help
+uvx install listmonk-mcp-bridge
+listmonk-mcp-bridge --help
 ```
 
 ### Install with `pip`
 
 ```bash
-pip install communications-mcp
+pip install listmonk-mcp-bridge
 ```
 
 After installation, the following commands are available:
 
 ```bash
-communications-mcp --help
+listmonk-mcp-bridge --help
 listmonk-mcp --help
 ```
 
@@ -170,13 +171,13 @@ export LISTMONK_MCP_PASSWORD=your-generated-api-token
 With the installed console command:
 
 ```bash
-communications-mcp
+listmonk-mcp-bridge
 ```
 
 Or through `uv` during development:
 
 ```bash
-uv run communications-mcp
+uv run listmonk-mcp-bridge
 ```
 
 You can also run the Python module directly:
@@ -192,9 +193,9 @@ Most MCP clients can start this server as a local command. A typical configurati
 ```json
 {
   "mcpServers": {
-    "communications-mcp": {
+    "listmonk-mcp-bridge": {
       "command": "uvx",
-      "args": ["communications-mcp"],
+      "args": ["listmonk-mcp-bridge"],
       "env": {
         "LISTMONK_MCP_URL": "https://listmonk.example.com",
         "LISTMONK_MCP_USERNAME": "api-user",
@@ -210,8 +211,8 @@ If you installed the package globally, you can also use:
 ```json
 {
   "mcpServers": {
-    "communications-mcp": {
-      "command": "communications-mcp",
+    "listmonk-mcp-bridge": {
+      "command": "listmonk-mcp-bridge",
       "env": {
         "LISTMONK_MCP_URL": "https://listmonk.example.com",
         "LISTMONK_MCP_USERNAME": "api-user",
@@ -261,23 +262,23 @@ curl \
 | `Connection refused` | Listmonk is not running or the URL is wrong | Check `LISTMONK_MCP_URL` and Listmonk availability |
 | `403` or `invalid session` | Invalid username/token or insufficient permissions | Regenerate the API token and verify the API user permissions |
 | `Module not found` | Development dependencies are not installed | Run `uv sync --extra dev` |
-| CLI command not found | Package not installed in the active environment | Use `uvx communications-mcp` or reinstall the package |
+| CLI command not found | Package not installed in the active environment | Use `uvx listmonk-mcp-bridge` or reinstall the package |
 
 ## Development
 
 Clone the repository and install development dependencies:
 
 ```bash
-git clone https://github.com/ediblelandscapecreators/communications-mcp.git
-cd communications-mcp
+git clone https://github.com/mnbro/listmonk-mcp-bridge.git
+cd listmonk-mcp-bridge
 uv sync --extra dev
 ```
 
 Run the development server:
 
 ```bash
-uv run communications-mcp --help
-uv run communications-mcp --version
+uv run listmonk-mcp-bridge --help
+uv run listmonk-mcp-bridge --version
 ```
 
 ### Code quality
@@ -360,7 +361,7 @@ Recommended safeguards:
 
 ## Attribution
 
-This project was initially forked from [`rhnvrm/listmonk-mcp`](https://github.com/rhnvrm/listmonk-mcp). The current `communications-mcp` package has been modified and extended for production-oriented packaging, configuration, validation, and operational use.
+This project was initially forked from [`rhnvrm/listmonk-mcp`](https://github.com/rhnvrm/listmonk-mcp). The current `listmonk-mcp-bridge` package has been modified and extended for production-oriented packaging, configuration, validation, and operational use.
 
 Listmonk is an independent open-source project. This package is not officially affiliated with or endorsed by the Listmonk maintainers.
 

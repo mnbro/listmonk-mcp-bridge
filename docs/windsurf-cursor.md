@@ -11,7 +11,7 @@ Add to your Windsurf MCP settings:
   "mcpServers": {
     "listmonk": {
       "command": "uvx",
-      "args": ["communications-mcp"],
+      "args": ["listmonk-mcp-bridge"],
       "env": {
         "LISTMONK_MCP_URL": "http://localhost:9000",
         "LISTMONK_MCP_USERNAME": "your-api-username",
@@ -31,7 +31,7 @@ Add to your Cursor MCP settings:
   "mcpServers": {
     "listmonk": {
       "command": "uvx",
-      "args": ["communications-mcp"],
+      "args": ["listmonk-mcp-bridge"],
       "env": {
         "LISTMONK_MCP_URL": "http://localhost:9000",
         "LISTMONK_MCP_USERNAME": "your-api-username",

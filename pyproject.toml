@@ -3,15 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "communications-mcp"
-version = "0.2.2"
+name = "listmonk-mcp-bridge"
+version = "0.1.0"
 description = "Production-ready MCP server for Listmonk newsletter and mailing list management"
-authors = [
-    { name = "Rohan Verma", email = "hello@rohanverma.net" }
-]
-maintainers = [
-    { name = "Edible Landscape Creators" }
-]
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"
@@ -51,14 +45,14 @@ docs = [
 ]
 
 [project.scripts]
-communications-mcp = "listmonk_mcp.server:main"
+listmonk-mcp-bridge = "listmonk_mcp.server:main"
 listmonk-mcp = "listmonk_mcp.server:main"
 
 [project.urls]
-Homepage = "https://github.com/ediblelandscapecreators/communications-mcp"
-Repository = "https://github.com/ediblelandscapecreators/communications-mcp"
-Issues = "https://github.com/ediblelandscapecreators/communications-mcp/issues"
-Documentation = "https://github.com/ediblelandscapecreators/communications-mcp/master/docs"
+Homepage = "https://github.com/mnbro/listmonk-mcp-bridge"
+Repository = "https://github.com/mnbro/listmonk-mcp-bridge"
+Issues = "https://github.com/mnbro/listmonk-mcp-bridge/issues"
+Documentation = "https://github.com/mnbro/listmonk-mcp-bridge/master/docs"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/listmonk_mcp"]

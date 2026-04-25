@@ -16,8 +16,8 @@ An MCP (Model Context Protocol) server for Listmonk, providing programmatic acce
 
 1. **Install the server:**
    ```bash
-   git clone https://github.com/ediblelandscapecreators/communications-mcp.git
-   cd communications-mcp
+   git clone https://github.com/mnbro/listmonk-mcp-bridge.git
+   cd listmonk-mcp-bridge
    ```
 
 2. **Create API credentials in Listmonk:**
@@ -38,7 +38,7 @@ All setups use the same basic configuration format:
 {
   "command": "uv",
   "args": ["run", "python", "-m", "listmonk_mcp.server"],
-  "cwd": "/path/to/communications-mcp",
+  "cwd": "/path/to/listmonk-mcp-bridge",
   "env": {
     "LISTMONK_MCP_URL": "http://localhost:9000",
     "LISTMONK_MCP_USERNAME": "your-api-username", 
@@ -56,3 +56,9 @@ The MCP server exposes 18 endpoints covering all major Listmonk operations:
 - **Campaigns**: Create, manage, and send campaigns
 - **Templates**: Access campaign and transactional templates
 - **Transactional Messages**: Send individual emails with template data
+
+## Tool Behavior Notes
+
+- `update_subscriber` supports partial updates and omits fields that were not provided.
+- `create_template` requires `subject` and sends it to the Listmonk templates API.
+- `create_campaign` converts plain text bodies to escaped HTML by default when `content_type="plain"`. Set `auto_convert_plain_to_html=false` to preserve plain text unchanged.
