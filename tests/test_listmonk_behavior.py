@@ -45,11 +45,32 @@ class RecordingClient(ListmonkClient):
         )
         return {"data": {"id": 123, **(json_data or {})}}
 
+    async def _request_form(
+        self,
+        method: str,
+        endpoint: str,
+        data: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        self.requests.append(
+            {
+                "method": method,
+                "endpoint": endpoint,
+                "params": None,
+                "json_data": data,
+                "retry_count": 0,
+            }
+        )
+        return {"text": "<p>Preview</p>"}
+
 
 def last_payload(client: RecordingClient) -> dict[str, Any]:
     payload = client.requests[-1]["json_data"]
     assert isinstance(payload, dict)
     return payload
+
+
+def last_request(client: RecordingClient) -> dict[str, Any]:
+    return client.requests[-1]
 
 
 @pytest.mark.asyncio
@@ -135,6 +156,23 @@ async def test_create_template_payload_includes_subject_for_tx() -> None:
         "type": "tx",
         "is_default": False,
     }
+
+
+@pytest.mark.asyncio
+async def test_create_template_supports_campaign_visual_body_source() -> None:
+    client = RecordingClient()
+
+    await client.create_template(
+        name="Visual",
+        subject="Subject",
+        body="<p>Hello</p>",
+        type="campaign_visual",
+        body_source='{"rows":[]}',
+    )
+
+    payload = last_payload(client)
+    assert payload["type"] == "campaign_visual"
+    assert payload["body_source"] == '{"rows":[]}'
 
 
 def test_create_template_schema_requires_subject() -> None:
@@ -234,6 +272,224 @@ async def test_create_campaign_html_ignores_conversion_flag() -> None:
 
 
 @pytest.mark.asyncio
+async def test_create_campaign_sends_swagger_fields() -> None:
+    client = RecordingClient()
+
+    await client.create_campaign(
+        name="Campaign",
+        subject="Subject",
+        lists=[1],
+        content_type="html",
+        body="<p>Hello</p>",
+        altbody="Hello",
+        from_email="Sender <sender@example.com>",
+        messenger="email",
+        template_id=2,
+        send_later=True,
+        send_at="2026-05-01T10:00:00Z",
+        headers=[{"X-Test": "1"}],
+    )
+
+    payload = last_payload(client)
+    assert payload["altbody"] == "Hello"
+    assert payload["from_email"] == "Sender <sender@example.com>"
+    assert payload["messenger"] == "email"
+    assert payload["template_id"] == 2
+    assert payload["send_later"] is True
+    assert payload["send_at"] == "2026-05-01T10:00:00Z"
+    assert payload["headers"] == [{"X-Test": "1"}]
+
+
+@pytest.mark.asyncio
+async def test_added_swagger_endpoint_methods_use_expected_paths() -> None:
+    client = RecordingClient()
+
+    await client.get_public_lists()
+    assert last_request(client)["method"] == "GET"
+    assert last_request(client)["endpoint"] == "/api/public/lists"
+
+    await client.get_media_file(7)
+    assert last_request(client)["method"] == "GET"
+    assert last_request(client)["endpoint"] == "/api/media/7"
+
+    await client.delete_campaign(3)
+    assert last_request(client)["method"] == "DELETE"
+    assert last_request(client)["endpoint"] == "/api/campaigns/3"
+
+    await client.set_default_template(4)
+    assert last_request(client)["method"] == "PUT"
+    assert last_request(client)["endpoint"] == "/api/templates/4/default"
+
+
+@pytest.mark.asyncio
+async def test_transactional_email_supports_multiple_recipient_modes() -> None:
+    client = RecordingClient()
+
+    await client.send_transactional_email(
+        template_id=2,
+        subscriber_emails=["external@example.com"],
+        subscriber_mode="external",
+        subject="Override",
+        from_email="Sender <sender@example.com>",
+        data={"order_id": "123"},
+        headers=[{"X-Test": "1"}],
+        messenger="email",
+        altbody="Plain text",
+    )
+
+    assert last_payload(client) == {
+        "template_id": 2,
+        "data": {"order_id": "123"},
+        "content_type": "html",
+        "subscriber_emails": ["external@example.com"],
+        "subscriber_mode": "external",
+        "from_email": "Sender <sender@example.com>",
+        "subject": "Override",
+        "headers": [{"X-Test": "1"}],
+        "messenger": "email",
+        "altbody": "Plain text",
+    }
+
+
+@pytest.mark.asyncio
+async def test_subscriber_auxiliary_methods_use_swagger_paths() -> None:
+    client = RecordingClient()
+
+    await client.send_subscriber_optin(9)
+    assert last_request(client)["method"] == "POST"
+    assert last_request(client)["endpoint"] == "/api/subscribers/9/optin"
+
+    await client.blocklist_subscriber(9)
+    assert last_request(client)["method"] == "PUT"
+    assert last_request(client)["endpoint"] == "/api/subscribers/9/blocklist"
+
+    await client.manage_subscriber_lists(
+        action="add",
+        target_list_ids=[1],
+        ids=[9],
+        status="confirmed",
+    )
+    assert last_request(client)["method"] == "PUT"
+    assert last_request(client)["endpoint"] == "/api/subscribers/lists"
+    assert last_payload(client) == {
+        "action": "add",
+        "target_list_ids": [1],
+        "ids": [9],
+        "status": "confirmed",
+    }
+
+
+@pytest.mark.asyncio
+async def test_misc_settings_admin_and_logs_methods_use_swagger_paths() -> None:
+    client = RecordingClient()
+
+    await client.get_server_config()
+    assert last_request(client)["endpoint"] == "/api/config"
+
+    await client.get_i18n_language("en")
+    assert last_request(client)["endpoint"] == "/api/lang/en"
+
+    await client.get_dashboard_charts()
+    assert last_request(client)["endpoint"] == "/api/dashboard/charts"
+
+    await client.get_dashboard_counts()
+    assert last_request(client)["endpoint"] == "/api/dashboard/counts"
+
+    await client.get_settings()
+    assert last_request(client)["endpoint"] == "/api/settings"
+
+    await client.update_settings({"app": {"site_name": "Listmonk"}})
+    assert last_request(client)["method"] == "PUT"
+    assert last_request(client)["endpoint"] == "/api/settings"
+
+    await client.test_smtp_settings({"host": "smtp.example.com"})
+    assert last_request(client)["method"] == "POST"
+    assert last_request(client)["endpoint"] == "/api/settings/smtp/test"
+
+    await client.reload_app()
+    assert last_request(client)["endpoint"] == "/api/admin/reload"
+
+    await client.get_logs()
+    assert last_request(client)["endpoint"] == "/api/logs"
+
+
+@pytest.mark.asyncio
+async def test_bulk_subscriber_and_bounce_methods_use_swagger_paths() -> None:
+    client = RecordingClient()
+
+    await client.delete_subscribers([1, 2])
+    assert last_request(client)["method"] == "DELETE"
+    assert last_request(client)["endpoint"] == "/api/subscribers"
+    assert last_request(client)["params"] == {"id": [1, 2]}
+
+    await client.blocklist_subscribers(ids=[1, 2])
+    assert last_request(client)["method"] == "PUT"
+    assert last_request(client)["endpoint"] == "/api/subscribers/blocklist"
+
+    await client.delete_subscribers_by_query("subscribers.email LIKE '%@example.com'")
+    assert last_request(client)["endpoint"] == "/api/subscribers/query/delete"
+
+    await client.blocklist_subscribers_by_query("subscribers.status = 'disabled'")
+    assert last_request(client)["endpoint"] == "/api/subscribers/query/blocklist"
+
+    await client.manage_subscriber_lists_by_query(
+        query="subscribers.status = 'enabled'",
+        action="add",
+        target_list_ids=[1],
+    )
+    assert last_request(client)["endpoint"] == "/api/subscribers/query/lists"
+
+    await client.delete_bounces(bounce_ids=[5, 6])
+    assert last_request(client)["method"] == "DELETE"
+    assert last_request(client)["endpoint"] == "/api/bounces"
+    assert last_request(client)["params"] == {"all": False, "id": [5, 6]}
+
+
+@pytest.mark.asyncio
+async def test_campaign_preview_bulk_public_and_maintenance_paths() -> None:
+    client = RecordingClient()
+
+    await client.delete_campaigns(ids=[1, 2])
+    assert last_request(client)["method"] == "DELETE"
+    assert last_request(client)["endpoint"] == "/api/campaigns"
+
+    await client.preview_campaign_body(3, "<p>Hello</p>", "html", template_id=4)
+    assert last_request(client)["method"] == "POST"
+    assert last_request(client)["endpoint"] == "/api/campaigns/3/preview"
+    assert last_payload(client) == {
+        "body": "<p>Hello</p>",
+        "content_type": "html",
+        "template_id": 4,
+    }
+
+    await client.preview_campaign_text(3, "Hello", "plain")
+    assert last_request(client)["endpoint"] == "/api/campaigns/3/text"
+
+    await client.create_public_subscription(
+        name="Ada",
+        email="ada@example.com",
+        list_uuids=["list-uuid"],
+    )
+    assert last_request(client)["endpoint"] == "/api/public/subscription"
+    assert last_payload(client) == {
+        "name": "Ada",
+        "email": "ada@example.com",
+        "list_uuids": ["list-uuid"],
+    }
+
+    await client.delete_gc_subscribers("blocklisted")
+    assert last_request(client)["endpoint"] == "/api/maintenance/subscribers/blocklisted"
+
+    await client.delete_campaign_analytics("views", "2026-01-01")
+    assert last_request(client)["endpoint"] == "/api/maintenance/analytics/views"
+    assert last_payload(client) == {"before_date": "2026-01-01"}
+
+    await client.delete_unconfirmed_subscriptions("2026-01-01")
+    assert last_request(client)["endpoint"] == "/api/maintenance/subscriptions/unconfirmed"
+    assert last_payload(client) == {"before_date": "2026-01-01"}
+
+
+@pytest.mark.asyncio
 async def test_create_campaign_tool_passes_conversion_flag(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -273,8 +529,10 @@ def test_create_campaign_model_exposes_conversion_default() -> None:
         altbody=None,
         template_id=None,
         tags=[],
+        send_later=None,
         send_at=None,
         messenger=None,
+        headers=None,
     )
 
     assert model.auto_convert_plain_to_html is True

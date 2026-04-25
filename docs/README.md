@@ -49,16 +49,17 @@ All setups use the same basic configuration format:
 
 ## API Coverage
 
-The MCP server exposes 18 endpoints covering all major Listmonk operations:
+The MCP server exposes 81 tools covering all 72 Listmonk Swagger operations plus focused convenience workflows:
 
 - **Subscribers**: Get, create, update, delete with advanced filtering
 - **Lists**: Full CRUD operations with tag support
 - **Campaigns**: Create, manage, and send campaigns
 - **Templates**: Access campaign and transactional templates
 - **Transactional Messages**: Send individual emails with template data
+- **Extended API Coverage**: Public lists, subscriber opt-in/export/bounces/list membership, bounces, import status/logs/stop, campaign stats/analytics/archive/test/content conversion, template preview/default, media lookup, and multi-recipient transactional messages
 
 ## Tool Behavior Notes
 
 - `update_subscriber` supports partial updates and omits fields that were not provided.
-- `create_template` requires `subject` and sends it to the Listmonk templates API.
+- `create_template` supports campaign, `campaign_visual`, and transactional (`tx`) templates, including `subject` and `body_source`.
 - `create_campaign` converts plain text bodies to escaped HTML by default when `content_type="plain"`. Set `auto_convert_plain_to_html=false` to preserve plain text unchanged.

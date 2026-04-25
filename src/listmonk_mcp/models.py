@@ -60,6 +60,7 @@ class OptinTypeEnum(str, Enum):
 class TemplateTypeEnum(str, Enum):
     """Template type enumeration."""
     campaign = "campaign"
+    campaign_visual = "campaign_visual"
     tx = "tx"
 
 
@@ -197,7 +198,9 @@ class UpdateSubscriberModel(BaseModel):
     name: str | None = Field(None, min_length=1, max_length=200, description="New name")
     status: SubscriberStatusEnum | None = Field(None, description="New status")
     lists: list[int] | None = Field(None, description="New list IDs")
+    list_uuids: list[str] | None = Field(None, description="New public list UUIDs")
     attribs: dict[str, Any] | None = Field(None, description="New custom attributes")
+    preconfirm_subscriptions: bool | None = Field(None, description="Preconfirm double opt-in subscriptions")
 
     @field_validator('lists')
     @classmethod
@@ -259,8 +262,10 @@ class CreateCampaignModel(BaseModel):
     altbody: str | None = Field(None, description="Plain text alternative body")
     template_id: int | None = Field(None, description="Template ID to use")
     tags: list[str] = Field(default_factory=list, description="Campaign tags")
+    send_later: bool | None = Field(None, description="Whether to schedule sending")
     send_at: datetime | None = Field(None, description="Scheduled send time")
     messenger: str | None = Field(None, description="Messenger backend")
+    headers: list[dict[str, Any]] | None = Field(None, description="Custom email headers")
 
     @field_validator('lists')
     @classmethod
@@ -295,7 +300,11 @@ class UpdateCampaignModel(BaseModel):
     altbody: str | None = Field(None, description="New plain text alternative body")
     template_id: int | None = Field(None, description="New template ID")
     tags: list[str] | None = Field(None, description="New campaign tags")
+    send_later: bool | None = Field(None, description="Whether to schedule sending")
     send_at: datetime | None = Field(None, description="New scheduled send time")
+    messenger: str | None = Field(None, description="New messenger backend")
+    content_type: ContentTypeEnum | None = Field(None, description="New content format")
+    headers: list[dict[str, Any]] | None = Field(None, description="New custom email headers")
 
     @field_validator('lists')
     @classmethod
@@ -320,6 +329,7 @@ class CreateTemplateModel(BaseModel):
     name: str = Field(..., min_length=1, max_length=200, description="Template name")
     subject: str = Field(..., min_length=1, max_length=500, description="Default template subject")
     body: str = Field(..., min_length=1, description="Template HTML body")
+    body_source: str | None = Field(None, description="JSON source for campaign_visual templates")
     type: TemplateTypeEnum = Field(default=TemplateTypeEnum.campaign, description="Template type")
     is_default: bool = Field(default=False, description="Whether this is the default template")
 
@@ -330,17 +340,27 @@ class UpdateTemplateModel(BaseModel):
     name: str | None = Field(None, min_length=1, max_length=200, description="New template name")
     subject: str | None = Field(None, min_length=1, max_length=500, description="New template subject")
     body: str | None = Field(None, min_length=1, description="New template HTML body")
+    body_source: str | None = Field(None, description="New JSON source for campaign_visual templates")
+    type: TemplateTypeEnum | None = Field(None, description="New template type")
     is_default: bool | None = Field(None, description="Whether this is the default template")
 
 
 class TransactionalEmailModel(BaseModel):
     """Model for sending transactional emails."""
 
-    subscriber_email: EmailStr = Field(..., description="Recipient email address")
     template_id: int = Field(..., gt=0, description="Template ID to use")
-    data: dict[str, Any] = Field(default_factory=dict, description="Template data/variables")
-    content_type: ContentTypeEnum = Field(default=ContentTypeEnum.html, description="Content format")
+    subscriber_email: EmailStr | None = Field(None, description="Recipient email address")
+    subscriber_id: int | None = Field(None, gt=0, description="Recipient subscriber ID")
+    subscriber_emails: list[EmailStr] | None = Field(None, description="Recipient email addresses")
+    subscriber_ids: list[int] | None = Field(None, description="Recipient subscriber IDs")
+    subscriber_mode: str | None = Field(None, description="Recipient lookup mode")
     from_email: EmailStr | None = Field(None, description="From email address")
+    subject: str | None = Field(None, description="Subject override")
+    data: dict[str, Any] = Field(default_factory=dict, description="Template data/variables")
+    headers: list[dict[str, Any]] | None = Field(None, description="Custom email headers")
+    messenger: str | None = Field(None, description="Messenger backend")
+    content_type: ContentTypeEnum = Field(default=ContentTypeEnum.html, description="Content format")
+    altbody: str | None = Field(None, description="Plain text alternative body")
 
     @field_validator('data')
     @classmethod
@@ -409,4 +429,3 @@ class HealthCheckResponse(BaseModel):
     status: str = Field(..., description="Health status")
     version: str | None = Field(None, description="Listmonk version")
     build: str | None = Field(None, description="Build information")
-

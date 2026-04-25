@@ -40,7 +40,7 @@ Production-focused improvements include:
 ## Features
 
 - **Broad Listmonk API coverage** for subscriber, list, campaign, and template workflows
-- **18 MCP tools** covering common newsletter management operations
+- **81 MCP tools** covering all 72 Listmonk Swagger operations plus focused convenience workflows
 - **MCP resources** for structured access to Listmonk data
 - **Async-first implementation** built on modern Python patterns
 - **Type-safe models** using Pydantic validation
@@ -50,8 +50,9 @@ Production-focused improvements include:
 ## Tool behavior notes
 
 - `update_subscriber` supports partial updates. Omitted fields are not sent to Listmonk, so changing only `name`, `status`, `lists`, or `attributes` does not require an `email`.
-- `create_template` requires `subject`, matching the Listmonk templates API for both campaign and transactional (`tx`) templates.
+- `create_template` supports campaign, `campaign_visual`, and transactional (`tx`) templates, including `subject` and `body_source`.
 - `create_campaign` converts `content_type="plain"` bodies into escaped HTML paragraphs by default with `auto_convert_plain_to_html=True`. Set `auto_convert_plain_to_html=False` to send plain text unchanged. HTML bodies are always left unchanged.
+- Swagger-aligned tools cover public lists, subscriber opt-in/export/bounces/list membership, bounces, import status/logs/stop, campaign delete/status/stats/analytics/archive/test/content conversion, template preview/default, media lookup, and extended transactional messages.
 
 ## Requirements
 
