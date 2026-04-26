@@ -42,6 +42,9 @@ class FakeSideEffectClient:
     async def send_campaign(self, campaign_id: int) -> dict[str, Any]:
         return {"data": {"id": campaign_id}}
 
+    async def send_transactional_email(self, **kwargs: Any) -> dict[str, Any]:
+        return {"data": kwargs}
+
     async def delete_subscribers_by_query(self, query: str) -> dict[str, Any]:
         return {"data": {"query": query}}
 
@@ -211,6 +214,24 @@ async def test_all_email_guardrails_block_without_confirm_send(tool: Any, kwargs
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("tool", "kwargs"),
+    [
+        (server.get_server_config, {}),
+        (server.get_settings, {}),
+        (server.get_logs, {}),
+        (server.get_subscriber_export, {"subscriber_id": 1}),
+    ],
+)
+async def test_sensitive_read_guardrails_block_without_confirm_read(tool: Any, kwargs: dict[str, Any]) -> None:
+    result = await tool(**kwargs)
+
+    assert result["success"] is False
+    assert result["error"]["error_type"] == "ReadConfirmationRequired"
+    assert result["error"]["confirm_required"] is True
+
+
+@pytest.mark.asyncio
 async def test_confirmed_operations_emit_audit_logs(
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
@@ -228,6 +249,31 @@ async def test_confirmed_operations_emit_audit_logs(
     assert '"kind": "confirmed_send"' in caplog.text
     assert '"operation": "delete campaign"' in caplog.text
     assert '"operation": "send campaign"' in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_audit_logs_redact_pii_and_raw_queries(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    monkeypatch.setattr(server, "get_client", lambda: FakeSideEffectClient())
+    server._bulk_query_events.clear()
+
+    with caplog.at_level("WARNING", logger="listmonk_mcp.audit"):
+        await server.delete_subscribers_by_query(
+            query="subscribers.email = 'secret@example.com'",
+            confirm=True,
+        )
+        await server.send_transactional_email(
+            template_id=1,
+            subscriber_email="secret@example.com",
+            confirm_send=True,
+        )
+
+    assert "secret@example.com" not in caplog.text
+    assert "subscribers.email" not in caplog.text
+    assert '"sha256"' in caplog.text
+    assert "<redacted-email>" in caplog.text
 
 
 @pytest.mark.asyncio

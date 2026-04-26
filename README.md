@@ -237,6 +237,7 @@ Before using this server in production, review the following recommendations:
 - Monitor Listmonk API logs for unexpected agent behavior.
 - Review any AI-generated campaign or subscriber changes before enabling fully automated flows.
 - Confirmed destructive operations emit structured audit logs on the `listmonk_mcp.audit` logger.
+- Sensitive read operations such as settings, logs, server config, and subscriber export require `confirm_read=true`.
 - Query-driven bulk operations are rate limited per server process with `LISTMONK_MCP_BULK_QUERY_RATE_LIMIT_PER_MINUTE` (default `30`; set `0` to disable).
 
 ### Staging smoke tests

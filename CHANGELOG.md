@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.7
+
+- Require `confirm_read=true` for sensitive read tools that expose settings, logs, server config, or full subscriber exports.
+- Redact email addresses and raw SQL-like query strings from audit logs while retaining query hashes for correlation.
+
 ## 0.1.6
 
 - Add structured audit logging for confirmed destructive and email-sending operations.

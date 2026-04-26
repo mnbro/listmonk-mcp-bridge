@@ -1,5 +1,6 @@
 """Listmonk MCP Server using FastMCP framework."""
 
+import hashlib
 import json
 import logging
 import os
@@ -31,8 +32,18 @@ _bulk_query_events: dict[str, deque[float]] = defaultdict(deque)
 
 
 def _redact_audit_value(key: str, value: Any) -> Any:
-    if any(secret in key.lower() for secret in ("password", "token", "secret")):
+    key_lower = key.lower()
+    if key_lower == "query":
+        if value is None:
+            return None
+        return {"present": True, "sha256": _hash_sensitive_text(str(value))}
+    if any(secret in key_lower for secret in ("password", "token", "secret")):
         return "<redacted>"
+    if "email" in key_lower:
+        if isinstance(value, list):
+            return ["<redacted-email>" for _ in value]
+        if value is not None:
+            return "<redacted-email>"
     if isinstance(value, dict):
         return {str(k): _redact_audit_value(str(k), v) for k, v in value.items()}
     if isinstance(value, list):
@@ -168,6 +179,10 @@ EMAIL_SEND_TOOL = ToolAnnotations(
 )
 
 
+def _hash_sensitive_text(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
 def confirmation_required(confirm: bool, operation: str, **context: Any) -> dict[str, Any] | None:
     """Require an explicit confirmation flag before side effects that destroy data."""
     if confirm:
@@ -179,6 +194,24 @@ def confirmation_required(confirm: bool, operation: str, **context: Any) -> dict
         "error": {
             "error_type": "ConfirmationRequired",
             "message": f"Set confirm=true to run operation requiring confirmation: {operation}",
+            "operation": operation,
+            "confirm_required": True,
+            "context": context,
+        },
+    }
+
+
+def read_confirmation_required(confirm_read: bool, operation: str, **context: Any) -> dict[str, Any] | None:
+    """Require explicit confirmation before returning sensitive read data."""
+    if confirm_read:
+        audit_confirmed_operation("confirmed_sensitive_read", operation, **context)
+        return None
+
+    return {
+        "success": False,
+        "error": {
+            "error_type": "ReadConfirmationRequired",
+            "message": f"Set confirm_read=true to run sensitive read operation: {operation}",
             "operation": operation,
             "confirm_required": True,
             "context": context,
@@ -382,9 +415,11 @@ async def check_listmonk_health() -> dict[str, Any]:
 
 
 @mcp.tool(annotations=READ_ONLY_TOOL)
-async def get_server_config() -> dict[str, Any]:
+async def get_server_config(confirm_read: bool = False) -> dict[str, Any]:
     """Get general Listmonk server config."""
     async def _get_config_logic() -> dict[str, Any]:
+        if error := read_confirmation_required(confirm_read, "get server config"):
+            return error
         client = get_client()
         result = await client.get_server_config()
         return success_response("Server config retrieved", config=result.get("data", result))
@@ -431,9 +466,11 @@ async def get_dashboard_counts() -> dict[str, Any]:
 
 
 @mcp.tool(annotations=READ_ONLY_TOOL)
-async def get_settings() -> dict[str, Any]:
+async def get_settings(confirm_read: bool = False) -> dict[str, Any]:
     """Get Listmonk settings."""
     async def _get_settings_logic() -> dict[str, Any]:
+        if error := read_confirmation_required(confirm_read, "get settings"):
+            return error
         client = get_client()
         result = await client.get_settings()
         return success_response("Settings retrieved", settings=result.get("data", result))
@@ -490,9 +527,11 @@ async def reload_app(confirm: bool = False) -> dict[str, Any]:
 
 
 @mcp.tool(annotations=READ_ONLY_TOOL)
-async def get_logs() -> dict[str, Any]:
+async def get_logs(confirm_read: bool = False) -> dict[str, Any]:
     """Get buffered Listmonk logs."""
     async def _get_logs_logic() -> dict[str, Any]:
+        if error := read_confirmation_required(confirm_read, "get logs"):
+            return error
         client = get_client()
         result = await client.get_logs()
         logs = result.get("data", result)
@@ -685,14 +724,17 @@ async def send_subscriber_optin(subscriber_id: int, confirm_send: bool = False) 
 
 
 @mcp.tool(annotations=READ_ONLY_TOOL)
-async def get_subscriber_export(subscriber_id: int) -> dict[str, Any]:
+async def get_subscriber_export(subscriber_id: int, confirm_read: bool = False) -> dict[str, Any]:
     """
     Export all data for a subscriber.
 
     Args:
         subscriber_id: ID of the subscriber
+        confirm_read: Must be true to export all data for a subscriber
     """
     async def _export_logic() -> dict[str, Any]:
+        if error := read_confirmation_required(confirm_read, "get subscriber export", subscriber_id=subscriber_id):
+            return error
         client = get_client()
         result = await client.get_subscriber_export(subscriber_id)
         return success_response("Subscriber export retrieved", subscriber_id=subscriber_id, export=result.get("data", result))
