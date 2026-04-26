@@ -1,6 +1,10 @@
 """Listmonk MCP Server using FastMCP framework."""
 
+import json
 import logging
+import os
+import time
+from collections import defaultdict, deque
 from contextlib import asynccontextmanager
 from typing import Annotated, Any
 
@@ -20,6 +24,90 @@ _config: Config | None = None
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+audit_logger = logging.getLogger("listmonk_mcp.audit")
+operations_logger = logging.getLogger("listmonk_mcp.operations")
+
+_bulk_query_events: dict[str, deque[float]] = defaultdict(deque)
+
+
+def _redact_audit_value(key: str, value: Any) -> Any:
+    if any(secret in key.lower() for secret in ("password", "token", "secret")):
+        return "<redacted>"
+    if isinstance(value, dict):
+        return {str(k): _redact_audit_value(str(k), v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_redact_audit_value(key, item) for item in value]
+    return value
+
+
+def audit_confirmed_operation(kind: str, operation: str, **context: Any) -> None:
+    """Emit a structured audit log for confirmed high-impact operations."""
+    redacted_context = {
+        key: _redact_audit_value(key, value)
+        for key, value in context.items()
+    }
+    audit_logger.warning(
+        "confirmed_operation %s",
+        json.dumps(
+            {
+                "kind": kind,
+                "operation": operation,
+                "context": redacted_context,
+            },
+            sort_keys=True,
+        ),
+    )
+
+
+def get_bulk_query_rate_limit_per_minute() -> int:
+    """Get the per-process bulk query operation rate limit."""
+    raw_limit = os.getenv("LISTMONK_MCP_BULK_QUERY_RATE_LIMIT_PER_MINUTE", "30")
+    try:
+        return int(raw_limit)
+    except ValueError:
+        logger.warning("Invalid LISTMONK_MCP_BULK_QUERY_RATE_LIMIT_PER_MINUTE=%r; using 30", raw_limit)
+        return 30
+
+
+def check_bulk_query_rate_limit(operation: str, query: str | None = None) -> dict[str, Any] | None:
+    """Rate limit query-driven bulk operations within this server process."""
+    limit = get_bulk_query_rate_limit_per_minute()
+    if limit <= 0:
+        operations_logger.info("bulk_query_rate_limit_disabled operation=%s", operation)
+        return None
+
+    now = time.monotonic()
+    window_start = now - 60
+    events = _bulk_query_events[operation]
+    while events and events[0] < window_start:
+        events.popleft()
+
+    if len(events) >= limit:
+        operations_logger.warning(
+            "bulk_query_rate_limited operation=%s limit=%s query_present=%s",
+            operation,
+            limit,
+            query is not None,
+        )
+        return {
+            "success": False,
+            "error": {
+                "error_type": "RateLimitExceeded",
+                "message": f"Bulk query operation rate limit exceeded for {operation}",
+                "operation": operation,
+                "limit_per_minute": limit,
+                "retry_after_seconds": 60,
+            },
+        }
+
+    events.append(now)
+    operations_logger.info(
+        "bulk_query_operation_allowed operation=%s remaining=%s query_present=%s",
+        operation,
+        max(limit - len(events), 0),
+        query is not None,
+    )
+    return None
 
 
 @asynccontextmanager
@@ -83,6 +171,7 @@ EMAIL_SEND_TOOL = ToolAnnotations(
 def confirmation_required(confirm: bool, operation: str, **context: Any) -> dict[str, Any] | None:
     """Require an explicit confirmation flag before side effects that destroy data."""
     if confirm:
+        audit_confirmed_operation("confirmed", operation, **context)
         return None
 
     return {
@@ -100,6 +189,7 @@ def confirmation_required(confirm: bool, operation: str, **context: Any) -> dict
 def send_confirmation_required(confirm_send: bool, operation: str, **context: Any) -> dict[str, Any] | None:
     """Require explicit confirmation before sending real email."""
     if confirm_send:
+        audit_confirmed_operation("confirmed_send", operation, **context)
         return None
 
     return {
@@ -699,6 +789,10 @@ async def manage_subscriber_lists(
             )
         ):
             return error
+        if query is not None and (
+            error := check_bulk_query_rate_limit("manage_subscriber_lists", query=query)
+        ):
+            return error
         client = get_client()
         result = await client.manage_subscriber_lists(
             action=action,
@@ -730,6 +824,10 @@ async def blocklist_subscribers(
     async def _blocklist_many_logic() -> dict[str, Any]:
         if error := confirmation_required(confirm, "blocklist subscribers", subscriber_ids=subscriber_ids, query=query):
             return error
+        if query is not None and (
+            error := check_bulk_query_rate_limit("blocklist_subscribers", query=query)
+        ):
+            return error
         client = get_client()
         result = await client.blocklist_subscribers(ids=subscriber_ids, query=query)
         return success_response("Subscribers blocklisted", result=result.get("data", result))
@@ -749,6 +847,8 @@ async def delete_subscribers_by_query(query: str, confirm: bool = False) -> dict
     async def _delete_query_logic() -> dict[str, Any]:
         if error := confirmation_required(confirm, "delete subscribers by query", query=query):
             return error
+        if error := check_bulk_query_rate_limit("delete_subscribers_by_query", query=query):
+            return error
         client = get_client()
         result = await client.delete_subscribers_by_query(query)
         return success_response("Subscribers deleted by query", result=result.get("data", result))
@@ -767,6 +867,8 @@ async def blocklist_subscribers_by_query(query: str, confirm: bool = False) -> d
     """
     async def _blocklist_query_logic() -> dict[str, Any]:
         if error := confirmation_required(confirm, "blocklist subscribers by query", query=query):
+            return error
+        if error := check_bulk_query_rate_limit("blocklist_subscribers_by_query", query=query):
             return error
         client = get_client()
         result = await client.blocklist_subscribers_by_query(query)
@@ -803,6 +905,8 @@ async def manage_subscriber_lists_by_query(
                 target_list_ids=target_list_ids,
             )
         ):
+            return error
+        if error := check_bulk_query_rate_limit("manage_subscriber_lists_by_query", query=query):
             return error
         client = get_client()
         result = await client.manage_subscriber_lists_by_query(
@@ -1306,6 +1410,10 @@ async def delete_mailing_lists(
     async def _delete_lists_logic() -> dict[str, Any]:
         if error := confirmation_required(confirm, "delete mailing lists", list_ids=list_ids, query=query):
             return error
+        if query is not None and (
+            error := check_bulk_query_rate_limit("delete_mailing_lists", query=query)
+        ):
+            return error
         client = get_client()
         result = await client.delete_lists(ids=list_ids, query=query)
         return success_response("Mailing lists deleted", result=result.get("data", result))
@@ -1714,6 +1822,10 @@ async def delete_campaigns(
     """
     async def _delete_campaigns_logic() -> dict[str, Any]:
         if error := confirmation_required(confirm, "delete campaigns", campaign_ids=campaign_ids, query=query):
+            return error
+        if query is not None and (
+            error := check_bulk_query_rate_limit("delete_campaigns", query=query)
+        ):
             return error
         client = get_client()
         result = await client.delete_campaigns(ids=campaign_ids, query=query)

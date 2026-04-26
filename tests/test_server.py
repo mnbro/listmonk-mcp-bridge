@@ -35,6 +35,17 @@ class FakeListmonkClient:
         }
 
 
+class FakeSideEffectClient:
+    async def delete_campaign(self, campaign_id: int) -> dict[str, Any]:
+        return {"data": {"id": campaign_id}}
+
+    async def send_campaign(self, campaign_id: int) -> dict[str, Any]:
+        return {"data": {"id": campaign_id}}
+
+    async def delete_subscribers_by_query(self, query: str) -> dict[str, Any]:
+        return {"data": {"query": query}}
+
+
 def test_create_production_server_returns_registered_server() -> None:
     assert server.create_production_server() is server.mcp
 
@@ -117,6 +128,45 @@ async def test_destructive_tools_are_annotated_and_require_confirmation() -> Non
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("tool", "kwargs"),
+    [
+        (server.update_settings, {"settings": {"app": {"site_name": "Staging"}}}),
+        (server.reload_app, {}),
+        (server.update_subscriber, {"subscriber_id": 1, "status": "blocklisted"}),
+        (server.update_subscriber, {"subscriber_id": 1, "lists": [1]}),
+        (server.manage_subscriber_lists, {"action": "remove", "target_list_ids": [1], "subscriber_ids": [1]}),
+        (server.manage_subscriber_lists_by_query, {"query": "subscribers.status = 'enabled'", "action": "unsubscribe", "target_list_ids": [1]}),
+        (server.delete_subscriber_bounces, {"subscriber_id": 1}),
+        (server.blocklist_subscriber, {"subscriber_id": 1}),
+        (server.blocklist_subscribers, {"subscriber_ids": [1]}),
+        (server.delete_subscribers_by_query, {"query": "subscribers.email LIKE '%@example.com'"}),
+        (server.blocklist_subscribers_by_query, {"query": "subscribers.status = 'disabled'"}),
+        (server.remove_subscriber, {"subscriber_id": 1}),
+        (server.remove_subscribers, {"subscriber_ids": [1]}),
+        (server.delete_bounce, {"bounce_id": 1}),
+        (server.delete_bounces, {"bounce_ids": [1]}),
+        (server.delete_mailing_list, {"list_id": 1}),
+        (server.delete_mailing_lists, {"list_ids": [1]}),
+        (server.stop_import_subscribers, {}),
+        (server.delete_campaign, {"campaign_id": 1}),
+        (server.delete_campaigns, {"campaign_ids": [1]}),
+        (server.delete_template, {"template_id": 1}),
+        (server.delete_media_file, {"media_id": 1}),
+        (server.delete_gc_subscribers, {"type": "blocklisted"}),
+        (server.delete_campaign_analytics, {"type": "views", "before_date": "2026-01-01"}),
+        (server.delete_unconfirmed_subscriptions, {"before_date": "2026-01-01"}),
+    ],
+)
+async def test_all_confirmation_guardrails_block_without_confirm(tool: Any, kwargs: dict[str, Any]) -> None:
+    result = await tool(**kwargs)
+
+    assert result["success"] is False
+    assert result["error"]["error_type"] == "ConfirmationRequired"
+    assert result["error"]["confirm_required"] is True
+
+
+@pytest.mark.asyncio
 async def test_email_sending_tools_are_marked_side_effecting_and_require_confirmation() -> None:
     email_tools = {
         "send_subscriber_optin",
@@ -140,6 +190,64 @@ async def test_email_sending_tools_are_marked_side_effecting_and_require_confirm
     assert result["success"] is False
     assert result["error"]["error_type"] == "SendConfirmationRequired"
     assert result["error"]["confirm_required"] is True
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("tool", "kwargs"),
+    [
+        (server.send_subscriber_optin, {"subscriber_id": 1}),
+        (server.send_campaign, {"campaign_id": 1}),
+        (server.test_campaign, {"campaign_id": 1, "subscribers": ["test@example.com"]}),
+        (server.send_transactional_email, {"template_id": 1, "subscriber_email": "test@example.com"}),
+    ],
+)
+async def test_all_email_guardrails_block_without_confirm_send(tool: Any, kwargs: dict[str, Any]) -> None:
+    result = await tool(**kwargs)
+
+    assert result["success"] is False
+    assert result["error"]["error_type"] == "SendConfirmationRequired"
+    assert result["error"]["confirm_required"] is True
+
+
+@pytest.mark.asyncio
+async def test_confirmed_operations_emit_audit_logs(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    monkeypatch.setattr(server, "get_client", lambda: FakeSideEffectClient())
+
+    with caplog.at_level("WARNING", logger="listmonk_mcp.audit"):
+        delete_result = await server.delete_campaign(campaign_id=7, confirm=True)
+        send_result = await server.send_campaign(campaign_id=8, confirm_send=True)
+
+    assert delete_result["success"] is True
+    assert send_result["success"] is True
+    assert "confirmed_operation" in caplog.text
+    assert '"kind": "confirmed"' in caplog.text
+    assert '"kind": "confirmed_send"' in caplog.text
+    assert '"operation": "delete campaign"' in caplog.text
+    assert '"operation": "send campaign"' in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_bulk_query_operations_are_rate_limited_and_observable(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    monkeypatch.setattr(server, "get_client", lambda: FakeSideEffectClient())
+    monkeypatch.setenv("LISTMONK_MCP_BULK_QUERY_RATE_LIMIT_PER_MINUTE", "1")
+    server._bulk_query_events.clear()
+
+    with caplog.at_level("INFO", logger="listmonk_mcp.operations"):
+        first = await server.delete_subscribers_by_query(query="subscribers.email LIKE '%@example.com'", confirm=True)
+        second = await server.delete_subscribers_by_query(query="subscribers.status = 'enabled'", confirm=True)
+
+    assert first["success"] is True
+    assert second["success"] is False
+    assert second["error"]["error_type"] == "RateLimitExceeded"
+    assert "bulk_query_operation_allowed" in caplog.text
+    assert "bulk_query_rate_limited" in caplog.text
 
 
 @pytest.mark.asyncio

@@ -236,6 +236,23 @@ Before using this server in production, review the following recommendations:
 - Test campaign-related workflows against a staging Listmonk instance first.
 - Monitor Listmonk API logs for unexpected agent behavior.
 - Review any AI-generated campaign or subscriber changes before enabling fully automated flows.
+- Confirmed destructive operations emit structured audit logs on the `listmonk_mcp.audit` logger.
+- Query-driven bulk operations are rate limited per server process with `LISTMONK_MCP_BULK_QUERY_RATE_LIMIT_PER_MINUTE` (default `30`; set `0` to disable).
+
+### Staging smoke tests
+
+Smoke tests that touch a real Listmonk instance are skipped by default. To run them against staging, set:
+
+```bash
+export LISTMONK_MCP_RUN_STAGING_SMOKE=true
+export LISTMONK_MCP_URL=https://listmonk-staging.example.com
+export LISTMONK_MCP_USERNAME=your-api-user
+export LISTMONK_MCP_PASSWORD=your-api-token
+export LISTMONK_MCP_SMOKE_LIST_ID=1
+export LISTMONK_MCP_SMOKE_CAMPAIGN_ID=1
+export LISTMONK_MCP_SMOKE_EMAIL=qa@example.com
+uv run pytest tests/test_staging_smoke.py -q
+```
 
 ## Troubleshooting
 

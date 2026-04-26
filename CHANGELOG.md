@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.6
+
+- Add structured audit logging for confirmed destructive and email-sending operations.
+- Add per-process rate limiting and observability logs for query-driven bulk operations.
+- Add opt-in staging smoke tests for settings updates, subscriber imports, and campaign test email sends.
+- Expand automated guardrail tests to exercise every confirmation path.
+
 ## 0.1.5
 
 - Require `confirm_send=true` before tools send real email.
