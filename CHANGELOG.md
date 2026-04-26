@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.3
+
+- Emit explicit MCP JSON schemas for complex tool arguments used by settings, SMTP testing, subscriber import, and batch campaign body replacement tools.
+- Add regression coverage for documented MCP tool argument schemas.
+
 ## 0.1.2
 
 - Use Listmonk's partial subscriber update endpoint (`PATCH /api/subscribers/{id}`) so updating only `name`, `status`, `lists`, or `attributes` does not require an `email`.

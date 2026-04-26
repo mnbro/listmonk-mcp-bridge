@@ -2,10 +2,11 @@
 
 import logging
 from contextlib import asynccontextmanager
-from typing import Any
+from typing import Annotated, Any
 
 import typer
 from mcp.server import FastMCP
+from pydantic import Field, WithJsonSchema
 
 from .client import ListmonkAPIError, ListmonkClient, create_client
 from .config import Config, load_config, validate_config
@@ -51,6 +52,116 @@ async def lifespan(app: Any) -> Any:
 # Register tools directly on the production server. This avoids relying on
 # FastMCP private internals to copy tools between server instances.
 mcp = FastMCP("Listmonk MCP Server", lifespan=lifespan)
+
+SettingsPayload = Annotated[
+    dict[str, Any],
+    Field(description="Listmonk settings object to update"),
+    WithJsonSchema(
+        {
+            "type": "object",
+            "description": "Listmonk settings object to update",
+            "properties": {
+                "app": {"type": "object", "description": "Application settings"},
+                "privacy": {"type": "object", "description": "Privacy settings"},
+                "smtp": {"type": "object", "description": "SMTP settings"},
+                "messengers": {"type": "object", "description": "Messenger settings"},
+                "bounce": {"type": "object", "description": "Bounce processing settings"},
+                "media": {"type": "object", "description": "Media upload settings"},
+                "security": {"type": "object", "description": "Security settings"},
+                "performance": {"type": "object", "description": "Performance settings"},
+                "appearance": {"type": "object", "description": "Appearance settings"},
+            },
+            "additionalProperties": True,
+        }
+    ),
+]
+
+SmtpSettingsPayload = Annotated[
+    dict[str, Any],
+    Field(description="SMTP settings object to test"),
+    WithJsonSchema(
+        {
+            "type": "object",
+            "description": "SMTP settings object to test",
+            "properties": {
+                "enabled": {"type": "boolean"},
+                "host": {"type": "string"},
+                "port": {"type": "integer"},
+                "auth_protocol": {"type": "string"},
+                "username": {"type": "string"},
+                "password": {"type": "string"},
+                "hello_hostname": {"type": "string"},
+                "max_conns": {"type": "integer"},
+                "idle_timeout": {"type": "string"},
+                "wait_timeout": {"type": "string"},
+                "tls_type": {"type": "string"},
+                "tls_skip_verify": {"type": "boolean"},
+                "email_headers": {"type": "array", "items": {"type": "object"}},
+            },
+            "additionalProperties": True,
+        }
+    ),
+]
+
+ImportSubscriberParamsPayload = Annotated[
+    dict[str, Any],
+    Field(description="Listmonk subscriber import parameters"),
+    WithJsonSchema(
+        {
+            "type": "object",
+            "description": "Listmonk subscriber import parameters",
+            "properties": {
+                "mode": {
+                    "type": "string",
+                    "enum": ["subscribe", "blocklist"],
+                    "description": "Import mode",
+                },
+                "delim": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1,
+                    "description": "CSV delimiter",
+                },
+                "lists": {
+                    "type": "array",
+                    "items": {"type": "integer"},
+                    "description": "List IDs to subscribe imported subscribers to",
+                },
+                "overwrite": {
+                    "type": "boolean",
+                    "description": "Overwrite existing subscriber records",
+                },
+                "subscription_status": {
+                    "type": "string",
+                    "enum": ["confirmed", "unconfirmed", "unsubscribed"],
+                    "description": "Subscription status for imported subscribers",
+                },
+            },
+            "required": ["mode", "delim"],
+            "additionalProperties": True,
+        }
+    ),
+]
+
+CampaignBodyReplacementsPayload = Annotated[
+    list[dict[str, str]],
+    Field(description="Search-and-replace operations for a campaign body"),
+    WithJsonSchema(
+        {
+            "type": "array",
+            "description": "Search-and-replace operations for a campaign body",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "search": {"type": "string", "description": "Text to find"},
+                    "replace": {"type": "string", "description": "Replacement text"},
+                },
+                "required": ["search", "replace"],
+                "additionalProperties": False,
+            },
+        }
+    ),
+]
 
 
 def create_production_server() -> FastMCP:
@@ -180,7 +291,7 @@ async def get_settings() -> dict[str, Any]:
 
 
 @mcp.tool()
-async def update_settings(settings: dict[str, Any]) -> dict[str, Any]:
+async def update_settings(settings: SettingsPayload) -> dict[str, Any]:
     """
     Update Listmonk settings.
 
@@ -196,7 +307,7 @@ async def update_settings(settings: dict[str, Any]) -> dict[str, Any]:
 
 
 @mcp.tool()
-async def test_smtp_settings(settings: dict[str, Any]) -> dict[str, Any]:
+async def test_smtp_settings(settings: SmtpSettingsPayload) -> dict[str, Any]:
     """
     Test SMTP settings.
 
@@ -1078,7 +1189,7 @@ async def get_import_subscriber_logs() -> dict[str, Any]:
 @mcp.tool()
 async def import_subscribers(
     file_path: str,
-    params: dict[str, Any]
+    params: ImportSubscriberParamsPayload
 ) -> dict[str, Any]:
     """
     Upload a subscriber import file.
@@ -2599,7 +2710,7 @@ async def regex_replace_in_campaign_body(
 @mcp.tool()
 async def batch_replace_in_campaign_body(
     campaign_id: int,
-    replacements: list[dict[str, str]]
+    replacements: CampaignBodyReplacementsPayload
 ) -> dict[str, Any]:
     """
     Perform multiple search-and-replace operations in one go.
