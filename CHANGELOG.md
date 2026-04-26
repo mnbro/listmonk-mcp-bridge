@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.5
+
+- Require `confirm_send=true` before tools send real email.
+- Add conditional confirmation for subscriber list removals, unsubscribe actions, blocklist status changes, sensitive subscriber updates, settings updates, app reloads, and stopping imports.
+- Add explicit read-only annotations for read-only tools.
+
 ## 0.1.4
 
 - Add MCP annotations for destructive and email-sending tools so clients can surface side-effect risk.

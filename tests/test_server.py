@@ -43,7 +43,7 @@ def test_create_production_server_returns_registered_server() -> None:
 async def test_reported_tool_schemas_include_documented_arguments() -> None:
     tools = {tool.name: tool.inputSchema for tool in await server.mcp.list_tools()}
 
-    assert set(tools["update_settings"]["properties"]) == {"settings"}
+    assert set(tools["update_settings"]["properties"]) == {"settings", "confirm"}
     assert tools["update_settings"]["required"] == ["settings"]
     assert tools["update_settings"]["properties"]["settings"]["type"] == "object"
     assert "smtp" in tools["update_settings"]["properties"]["settings"]["properties"]
@@ -74,6 +74,10 @@ async def test_destructive_tools_are_annotated_and_require_confirmation() -> Non
         "blocklist_subscribers",
         "delete_subscribers_by_query",
         "blocklist_subscribers_by_query",
+        "update_subscriber",
+        "manage_subscriber_lists",
+        "manage_subscriber_lists_by_query",
+        "change_subscriber_status",
         "remove_subscriber",
         "remove_subscribers",
         "delete_bounce",
@@ -84,6 +88,7 @@ async def test_destructive_tools_are_annotated_and_require_confirmation() -> Non
         "delete_campaigns",
         "delete_template",
         "delete_media_file",
+        "stop_import_subscribers",
         "delete_gc_subscribers",
         "delete_campaign_analytics",
         "delete_unconfirmed_subscriptions",
@@ -105,9 +110,14 @@ async def test_destructive_tools_are_annotated_and_require_confirmation() -> Non
     assert result["error"]["confirm_required"] is True
     assert result["error"]["context"] == {"campaign_id": 7}
 
+    result = await server.change_subscriber_status(subscriber_id=11, status="blocklisted")
+
+    assert result["success"] is False
+    assert result["error"]["error_type"] == "ConfirmationRequired"
+
 
 @pytest.mark.asyncio
-async def test_email_sending_tools_are_marked_side_effecting() -> None:
+async def test_email_sending_tools_are_marked_side_effecting_and_require_confirmation() -> None:
     email_tools = {
         "send_subscriber_optin",
         "send_campaign",
@@ -123,6 +133,60 @@ async def test_email_sending_tools_are_marked_side_effecting() -> None:
         assert tool.annotations.destructiveHint is False
         assert tool.annotations.idempotentHint is False
         assert tool.annotations.openWorldHint is True
+        assert tool.inputSchema["properties"]["confirm_send"]["type"] == "boolean"
+
+    result = await server.send_campaign(campaign_id=7)
+
+    assert result["success"] is False
+    assert result["error"]["error_type"] == "SendConfirmationRequired"
+    assert result["error"]["confirm_required"] is True
+
+
+@pytest.mark.asyncio
+async def test_read_only_tools_are_explicitly_annotated() -> None:
+    read_only_tools = {
+        "check_listmonk_health",
+        "get_server_config",
+        "get_i18n_language",
+        "get_dashboard_charts",
+        "get_dashboard_counts",
+        "get_settings",
+        "get_logs",
+        "get_subscribers",
+        "get_subscriber",
+        "get_subscriber_export",
+        "get_subscriber_bounces",
+        "get_bounces",
+        "get_bounce",
+        "get_mailing_lists",
+        "get_public_mailing_lists",
+        "get_mailing_list",
+        "get_import_subscribers",
+        "get_import_subscriber_logs",
+        "get_list_subscribers_tool",
+        "get_campaigns",
+        "get_campaign",
+        "get_campaign_html_preview",
+        "preview_campaign_body",
+        "preview_campaign_text",
+        "get_running_campaign_stats",
+        "get_campaign_analytics",
+        "get_templates",
+        "get_template",
+        "preview_template",
+        "get_template_html_preview",
+        "get_media_list",
+        "get_media_file",
+    }
+    tools = {tool.name: tool for tool in await server.mcp.list_tools()}
+
+    assert all(tool.annotations is not None for tool in tools.values())
+    for tool_name in read_only_tools:
+        tool = tools[tool_name]
+        assert tool.annotations is not None
+        assert tool.annotations.readOnlyHint is True
+        assert tool.annotations.destructiveHint is False
+        assert tool.annotations.idempotentHint is True
 
 
 def test_success_response() -> None:

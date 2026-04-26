@@ -54,6 +54,18 @@ async def lifespan(app: Any) -> Any:
 # FastMCP private internals to copy tools between server instances.
 mcp = FastMCP("Listmonk MCP Server", lifespan=lifespan)
 
+READ_ONLY_TOOL = ToolAnnotations(
+    readOnlyHint=True,
+    destructiveHint=False,
+    idempotentHint=True,
+    openWorldHint=True,
+)
+SIDE_EFFECT_TOOL = ToolAnnotations(
+    readOnlyHint=False,
+    destructiveHint=False,
+    idempotentHint=False,
+    openWorldHint=True,
+)
 DESTRUCTIVE_TOOL = ToolAnnotations(
     readOnlyHint=False,
     destructiveHint=True,
@@ -77,12 +89,30 @@ def confirmation_required(confirm: bool, operation: str, **context: Any) -> dict
         "success": False,
         "error": {
             "error_type": "ConfirmationRequired",
-            "message": f"Set confirm=true to run destructive operation: {operation}",
+            "message": f"Set confirm=true to run operation requiring confirmation: {operation}",
             "operation": operation,
             "confirm_required": True,
             "context": context,
         },
     }
+
+
+def send_confirmation_required(confirm_send: bool, operation: str, **context: Any) -> dict[str, Any] | None:
+    """Require explicit confirmation before sending real email."""
+    if confirm_send:
+        return None
+
+    return {
+        "success": False,
+        "error": {
+            "error_type": "SendConfirmationRequired",
+            "message": f"Set confirm_send=true to run email-sending operation: {operation}",
+            "operation": operation,
+            "confirm_required": True,
+            "context": context,
+        },
+    }
+
 
 SettingsPayload = Annotated[
     dict[str, Any],
@@ -244,7 +274,7 @@ def get_config() -> Config:
 
 
 # Health Check Tool
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY_TOOL)
 async def check_listmonk_health() -> dict[str, Any]:
     """Check if Listmonk server is healthy and accessible."""
     async def _check_health_logic() -> dict[str, Any]:
@@ -261,7 +291,7 @@ async def check_listmonk_health() -> dict[str, Any]:
     return await safe_execute_async(_check_health_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY_TOOL)
 async def get_server_config() -> dict[str, Any]:
     """Get general Listmonk server config."""
     async def _get_config_logic() -> dict[str, Any]:
@@ -272,7 +302,7 @@ async def get_server_config() -> dict[str, Any]:
     return await safe_execute_async(_get_config_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY_TOOL)
 async def get_i18n_language(lang: str) -> dict[str, Any]:
     """
     Get a Listmonk language pack.
@@ -288,7 +318,7 @@ async def get_i18n_language(lang: str) -> dict[str, Any]:
     return await safe_execute_async(_get_lang_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY_TOOL)
 async def get_dashboard_charts() -> dict[str, Any]:
     """Get Listmonk dashboard chart data."""
     async def _get_dashboard_charts_logic() -> dict[str, Any]:
@@ -299,7 +329,7 @@ async def get_dashboard_charts() -> dict[str, Any]:
     return await safe_execute_async(_get_dashboard_charts_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY_TOOL)
 async def get_dashboard_counts() -> dict[str, Any]:
     """Get Listmonk dashboard count data."""
     async def _get_dashboard_counts_logic() -> dict[str, Any]:
@@ -310,7 +340,7 @@ async def get_dashboard_counts() -> dict[str, Any]:
     return await safe_execute_async(_get_dashboard_counts_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY_TOOL)
 async def get_settings() -> dict[str, Any]:
     """Get Listmonk settings."""
     async def _get_settings_logic() -> dict[str, Any]:
@@ -321,15 +351,18 @@ async def get_settings() -> dict[str, Any]:
     return await safe_execute_async(_get_settings_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
-async def update_settings(settings: SettingsPayload) -> dict[str, Any]:
+@mcp.tool(annotations=SIDE_EFFECT_TOOL)
+async def update_settings(settings: SettingsPayload, confirm: bool = False) -> dict[str, Any]:
     """
     Update Listmonk settings.
 
     Args:
         settings: Settings object matching the Listmonk API schema
+        confirm: Must be true to update Listmonk settings
     """
     async def _update_settings_logic() -> dict[str, Any]:
+        if error := confirmation_required(confirm, "update settings", settings_keys=sorted(settings.keys())):
+            return error
         client = get_client()
         result = await client.update_settings(settings)
         return success_response("Settings updated", result=result.get("data", result))
@@ -337,7 +370,7 @@ async def update_settings(settings: SettingsPayload) -> dict[str, Any]:
     return await safe_execute_async(_update_settings_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
+@mcp.tool(annotations=SIDE_EFFECT_TOOL)
 async def test_smtp_settings(settings: SmtpSettingsPayload) -> dict[str, Any]:
     """
     Test SMTP settings.
@@ -353,10 +386,12 @@ async def test_smtp_settings(settings: SmtpSettingsPayload) -> dict[str, Any]:
     return await safe_execute_async(_test_smtp_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
-async def reload_app() -> dict[str, Any]:
+@mcp.tool(annotations=SIDE_EFFECT_TOOL)
+async def reload_app(confirm: bool = False) -> dict[str, Any]:
     """Reload the Listmonk app."""
     async def _reload_logic() -> dict[str, Any]:
+        if error := confirmation_required(confirm, "reload app"):
+            return error
         client = get_client()
         result = await client.reload_app()
         return success_response("Listmonk reload requested", result=result.get("data", result))
@@ -364,7 +399,7 @@ async def reload_app() -> dict[str, Any]:
     return await safe_execute_async(_reload_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY_TOOL)
 async def get_logs() -> dict[str, Any]:
     """Get buffered Listmonk logs."""
     async def _get_logs_logic() -> dict[str, Any]:
@@ -377,7 +412,7 @@ async def get_logs() -> dict[str, Any]:
 
 
 # Subscriber Management Tools
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY_TOOL)
 async def get_subscribers(
     page: int = 1,
     per_page: int | str = 20,
@@ -423,7 +458,7 @@ async def get_subscribers(
     return await safe_execute_async(_get_subscribers_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY_TOOL)
 async def get_subscriber(subscriber_id: int) -> dict[str, Any]:
     """
     Get a subscriber by ID.
@@ -439,7 +474,7 @@ async def get_subscriber(subscriber_id: int) -> dict[str, Any]:
     return await safe_execute_async(_get_subscriber_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
+@mcp.tool(annotations=SIDE_EFFECT_TOOL)
 async def add_subscriber(
     email: str,
     name: str,
@@ -481,7 +516,7 @@ async def add_subscriber(
     return await safe_execute_async(_add_subscriber_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
+@mcp.tool(annotations=DESTRUCTIVE_TOOL)
 async def update_subscriber(
     subscriber_id: int,
     email: str | None = None,
@@ -490,7 +525,8 @@ async def update_subscriber(
     lists: list[int] | None = None,
     attributes: dict[str, Any] | None = None,
     list_uuids: list[str] | None = None,
-    preconfirm_subscriptions: bool | None = None
+    preconfirm_subscriptions: bool | None = None,
+    confirm: bool = False
 ) -> dict[str, Any]:
     """
     Update an existing subscriber.
@@ -504,8 +540,20 @@ async def update_subscriber(
         attributes: New custom attributes
         list_uuids: New public list UUID subscriptions
         preconfirm_subscriptions: Whether to preconfirm double opt-in subscriptions
+        confirm: Must be true when blocklisting or replacing list memberships
     """
     async def _update_subscriber_logic() -> dict[str, Any]:
+        if (status == "blocklisted" or lists is not None or list_uuids is not None) and (
+            error := confirmation_required(
+                confirm,
+                "sensitive subscriber update",
+                subscriber_id=subscriber_id,
+                status=status,
+                lists=lists,
+                list_uuids=list_uuids,
+            )
+        ):
+            return error
         client = get_client()
         result = await client.update_subscriber(
             subscriber_id=subscriber_id,
@@ -528,14 +576,17 @@ async def update_subscriber(
 
 
 @mcp.tool(annotations=EMAIL_SEND_TOOL)
-async def send_subscriber_optin(subscriber_id: int) -> dict[str, Any]:
+async def send_subscriber_optin(subscriber_id: int, confirm_send: bool = False) -> dict[str, Any]:
     """
     Send an opt-in confirmation email to a subscriber.
 
     Args:
         subscriber_id: ID of the subscriber
+        confirm_send: Must be true to send the opt-in email
     """
     async def _send_optin_logic() -> dict[str, Any]:
+        if error := send_confirmation_required(confirm_send, "send subscriber opt-in", subscriber_id=subscriber_id):
+            return error
         client = get_client()
         result = await client.send_subscriber_optin(subscriber_id)
         return success_response("Subscriber opt-in sent", subscriber_id=subscriber_id, result=result.get("data", result))
@@ -543,7 +594,7 @@ async def send_subscriber_optin(subscriber_id: int) -> dict[str, Any]:
     return await safe_execute_async(_send_optin_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY_TOOL)
 async def get_subscriber_export(subscriber_id: int) -> dict[str, Any]:
     """
     Export all data for a subscriber.
@@ -559,7 +610,7 @@ async def get_subscriber_export(subscriber_id: int) -> dict[str, Any]:
     return await safe_execute_async(_export_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY_TOOL)
 async def get_subscriber_bounces(subscriber_id: int) -> dict[str, Any]:
     """
     Get bounce records for a subscriber.
@@ -613,14 +664,15 @@ async def blocklist_subscriber(subscriber_id: int, confirm: bool = False) -> dic
     return await safe_execute_async(_blocklist_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
+@mcp.tool(annotations=DESTRUCTIVE_TOOL)
 async def manage_subscriber_lists(
     action: str,
     target_list_ids: list[int],
     subscriber_ids: list[int] | None = None,
     query: str | None = None,
     status: str | None = None,
-    list_id: int | None = None
+    list_id: int | None = None,
+    confirm: bool = False
 ) -> dict[str, Any]:
     """
     Add, remove, or unsubscribe subscribers from lists.
@@ -632,8 +684,21 @@ async def manage_subscriber_lists(
         query: Optional SQL expression for subscribers to modify
         status: Subscription status (confirmed, unconfirmed, unsubscribed)
         list_id: Optional list ID variant endpoint
+        confirm: Must be true for remove or unsubscribe actions
     """
     async def _manage_lists_logic() -> dict[str, Any]:
+        if action in {"remove", "unsubscribe"} and (
+            error := confirmation_required(
+                confirm,
+                "manage subscriber list memberships",
+                action=action,
+                target_list_ids=target_list_ids,
+                subscriber_ids=subscriber_ids,
+                query=query,
+                list_id=list_id,
+            )
+        ):
+            return error
         client = get_client()
         result = await client.manage_subscriber_lists(
             action=action,
@@ -710,12 +775,13 @@ async def blocklist_subscribers_by_query(query: str, confirm: bool = False) -> d
     return await safe_execute_async(_blocklist_query_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
+@mcp.tool(annotations=DESTRUCTIVE_TOOL)
 async def manage_subscriber_lists_by_query(
     query: str,
     action: str,
     target_list_ids: list[int],
-    status: str | None = None
+    status: str | None = None,
+    confirm: bool = False
 ) -> dict[str, Any]:
     """
     Add, remove, or unsubscribe query-matched subscribers from lists.
@@ -725,8 +791,19 @@ async def manage_subscriber_lists_by_query(
         action: List action (add, remove, unsubscribe)
         target_list_ids: List IDs to modify
         status: Subscription status
+        confirm: Must be true for query-based remove or unsubscribe actions
     """
     async def _manage_query_lists_logic() -> dict[str, Any]:
+        if action in {"remove", "unsubscribe"} and (
+            error := confirmation_required(
+                confirm,
+                "manage subscriber list memberships by query",
+                query=query,
+                action=action,
+                target_list_ids=target_list_ids,
+            )
+        ):
+            return error
         client = get_client()
         result = await client.manage_subscriber_lists_by_query(
             query=query,
@@ -782,16 +859,21 @@ async def remove_subscribers(subscriber_ids: list[int], confirm: bool = False) -
     return await safe_execute_async(_remove_subscribers_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
-async def change_subscriber_status(subscriber_id: int, status: str) -> dict[str, Any]:
+@mcp.tool(annotations=DESTRUCTIVE_TOOL)
+async def change_subscriber_status(subscriber_id: int, status: str, confirm: bool = False) -> dict[str, Any]:
     """
     Change subscriber status.
 
     Args:
         subscriber_id: ID of the subscriber
         status: New status (enabled, disabled, blocklisted)
+        confirm: Must be true when changing status to blocklisted
     """
     async def _change_status_logic() -> dict[str, Any]:
+        if status == "blocklisted" and (
+            error := confirmation_required(confirm, "change subscriber status to blocklisted", subscriber_id=subscriber_id)
+        ):
+            return error
         client = get_client()
         result = await client.set_subscriber_status(subscriber_id, status)
 
@@ -805,7 +887,7 @@ async def change_subscriber_status(subscriber_id: int, status: str) -> dict[str,
     return await safe_execute_async(_change_status_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY_TOOL)
 async def get_bounces(
     campaign_id: int | None = None,
     page: int = 1,
@@ -848,7 +930,7 @@ async def get_bounces(
     return await safe_execute_async(_get_bounces_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY_TOOL)
 async def get_bounce(bounce_id: int) -> dict[str, Any]:
     """
     Get a bounce record by ID.
@@ -1007,7 +1089,7 @@ async def list_subscribers() -> str:
 
 
 # List Management Tools
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY_TOOL)
 async def get_mailing_lists(
     query: str | None = None,
     status: str | None = None,
@@ -1050,7 +1132,7 @@ async def get_mailing_lists(
     return await safe_execute_async(_get_lists_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY_TOOL)
 async def get_public_mailing_lists() -> dict[str, Any]:
     """Get public mailing lists exposed by Listmonk for subscription forms."""
     async def _get_public_lists_logic() -> dict[str, Any]:
@@ -1062,7 +1144,7 @@ async def get_public_mailing_lists() -> dict[str, Any]:
     return await safe_execute_async(_get_public_lists_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY_TOOL)
 async def get_mailing_list(list_id: int) -> dict[str, Any]:
     """
     Get a mailing list by ID.
@@ -1078,7 +1160,7 @@ async def get_mailing_list(list_id: int) -> dict[str, Any]:
     return await safe_execute_async(_get_list_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
+@mcp.tool(annotations=SIDE_EFFECT_TOOL)
 async def create_public_subscription(
     name: str,
     email: str,
@@ -1104,7 +1186,7 @@ async def create_public_subscription(
     return await safe_execute_async(_public_subscription_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
+@mcp.tool(annotations=SIDE_EFFECT_TOOL)
 async def create_mailing_list(
     name: str,
     type: str = "public",
@@ -1143,7 +1225,7 @@ async def create_mailing_list(
     return await safe_execute_async(_create_list_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
+@mcp.tool(annotations=SIDE_EFFECT_TOOL)
 async def update_mailing_list(
     list_id: int,
     name: str | None = None,
@@ -1231,7 +1313,7 @@ async def delete_mailing_lists(
     return await safe_execute_async(_delete_lists_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY_TOOL)
 async def get_import_subscribers() -> dict[str, Any]:
     """Get subscriber import status."""
     async def _get_import_logic() -> dict[str, Any]:
@@ -1242,7 +1324,7 @@ async def get_import_subscribers() -> dict[str, Any]:
     return await safe_execute_async(_get_import_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY_TOOL)
 async def get_import_subscriber_logs() -> dict[str, Any]:
     """Get subscriber import logs."""
     async def _get_import_logs_logic() -> dict[str, Any]:
@@ -1253,7 +1335,7 @@ async def get_import_subscriber_logs() -> dict[str, Any]:
     return await safe_execute_async(_get_import_logs_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
+@mcp.tool(annotations=SIDE_EFFECT_TOOL)
 async def import_subscribers(
     file_path: str,
     params: ImportSubscriberParamsPayload
@@ -1273,10 +1355,12 @@ async def import_subscribers(
     return await safe_execute_async(_import_subscribers_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
-async def stop_import_subscribers() -> dict[str, Any]:
+@mcp.tool(annotations=DESTRUCTIVE_TOOL)
+async def stop_import_subscribers(confirm: bool = False) -> dict[str, Any]:
     """Stop and remove a subscriber import."""
     async def _stop_import_logic() -> dict[str, Any]:
+        if error := confirmation_required(confirm, "stop and remove subscriber import"):
+            return error
         client = get_client()
         result = await client.stop_import_subscribers()
         return success_response("Import stopped", result=result.get("data", result))
@@ -1284,7 +1368,7 @@ async def stop_import_subscribers() -> dict[str, Any]:
     return await safe_execute_async(_stop_import_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY_TOOL)
 async def get_list_subscribers_tool(
     list_id: int,
     page: int = 1,
@@ -1323,7 +1407,7 @@ async def get_list_subscribers_tool(
 
 
 # Campaign Management Tools
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY_TOOL)
 async def get_campaigns(
     status: str | None = None,
     query: str | None = None,
@@ -1375,7 +1459,7 @@ async def get_campaigns(
     return await safe_execute_async(_get_campaigns_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY_TOOL)
 async def get_campaign(campaign_id: int, no_body: bool | None = None) -> dict[str, Any]:
     """
     Get a specific campaign by ID including its full body content.
@@ -1394,7 +1478,7 @@ async def get_campaign(campaign_id: int, no_body: bool | None = None) -> dict[st
     return await safe_execute_async(_get_campaign_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
+@mcp.tool(annotations=SIDE_EFFECT_TOOL)
 async def create_campaign(
     name: str,
     subject: str,
@@ -1464,7 +1548,7 @@ async def create_campaign(
     return await safe_execute_async(_create_campaign_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
+@mcp.tool(annotations=SIDE_EFFECT_TOOL)
 async def update_campaign(
     campaign_id: int,
     name: str | None = None,
@@ -1532,14 +1616,17 @@ async def update_campaign(
 
 
 @mcp.tool(annotations=EMAIL_SEND_TOOL)
-async def send_campaign(campaign_id: int) -> dict[str, Any]:
+async def send_campaign(campaign_id: int, confirm_send: bool = False) -> dict[str, Any]:
     """
     Send a campaign immediately.
 
     Args:
         campaign_id: ID of the campaign to send
+        confirm_send: Must be true to send the campaign
     """
     async def _send_campaign_logic() -> dict[str, Any]:
+        if error := send_confirmation_required(confirm_send, "send campaign", campaign_id=campaign_id):
+            return error
         client = get_client()
         result = await client.send_campaign(campaign_id)
 
@@ -1552,7 +1639,7 @@ async def send_campaign(campaign_id: int) -> dict[str, Any]:
     return await safe_execute_async(_send_campaign_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
+@mcp.tool(annotations=SIDE_EFFECT_TOOL)
 async def schedule_campaign(campaign_id: int, send_at: str) -> dict[str, Any]:
     """
     Schedule a campaign for future delivery.
@@ -1575,7 +1662,7 @@ async def schedule_campaign(campaign_id: int, send_at: str) -> dict[str, Any]:
     return await safe_execute_async(_schedule_campaign_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
+@mcp.tool(annotations=SIDE_EFFECT_TOOL)
 async def update_campaign_status(campaign_id: int, status: str) -> dict[str, Any]:
     """
     Update a campaign status.
@@ -1635,7 +1722,7 @@ async def delete_campaigns(
     return await safe_execute_async(_delete_campaigns_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY_TOOL)
 async def get_campaign_html_preview(campaign_id: int) -> dict[str, Any]:
     """
     Get a campaign HTML preview.
@@ -1651,7 +1738,7 @@ async def get_campaign_html_preview(campaign_id: int) -> dict[str, Any]:
     return await safe_execute_async(_get_campaign_preview_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY_TOOL)
 async def preview_campaign_body(
     campaign_id: int,
     body: str,
@@ -1680,7 +1767,7 @@ async def preview_campaign_body(
     return await safe_execute_async(_preview_campaign_body_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY_TOOL)
 async def preview_campaign_text(
     campaign_id: int,
     body: str,
@@ -1709,7 +1796,7 @@ async def preview_campaign_text(
     return await safe_execute_async(_preview_campaign_text_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY_TOOL)
 async def get_running_campaign_stats(campaign_ids: list[int]) -> dict[str, Any]:
     """
     Get running stats for campaign IDs.
@@ -1725,7 +1812,7 @@ async def get_running_campaign_stats(campaign_ids: list[int]) -> dict[str, Any]:
     return await safe_execute_async(_running_stats_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY_TOOL)
 async def get_campaign_analytics(
     analytics_type: str,
     campaign_ids: list[int],
@@ -1754,7 +1841,7 @@ async def get_campaign_analytics(
     return await safe_execute_async(_analytics_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
+@mcp.tool(annotations=SIDE_EFFECT_TOOL)
 async def archive_campaign(
     campaign_id: int,
     archive: bool = True,
@@ -1783,7 +1870,7 @@ async def archive_campaign(
     return await safe_execute_async(_archive_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
+@mcp.tool(annotations=SIDE_EFFECT_TOOL)
 async def convert_campaign_content(
     campaign_id: int,
     body: str,
@@ -1816,7 +1903,8 @@ async def convert_campaign_content(
 async def test_campaign(
     campaign_id: int,
     subscribers: list[str],
-    template_id: int | None = None
+    template_id: int | None = None,
+    confirm_send: bool = False
 ) -> dict[str, Any]:
     """
     Send a campaign test message to arbitrary subscriber emails.
@@ -1825,8 +1913,16 @@ async def test_campaign(
         campaign_id: ID of the campaign
         subscribers: Subscriber email addresses
         template_id: Optional template ID
+        confirm_send: Must be true to send the campaign test email
     """
     async def _test_campaign_logic() -> dict[str, Any]:
+        if error := send_confirmation_required(
+            confirm_send,
+            "send campaign test",
+            campaign_id=campaign_id,
+            subscribers=subscribers,
+        ):
+            return error
         client = get_client()
         result = await client.test_campaign(
             campaign_id=campaign_id,
@@ -2073,7 +2169,7 @@ async def get_list_subscribers_resource(list_id: str) -> str:
 
 
 # Template Management Tools
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY_TOOL)
 async def get_templates(no_body: bool | None = None) -> dict[str, Any]:
     """
     Get all email templates.
@@ -2092,7 +2188,7 @@ async def get_templates(no_body: bool | None = None) -> dict[str, Any]:
     return await safe_execute_async(_get_templates_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY_TOOL)
 async def get_template(template_id: int, no_body: bool | None = None) -> dict[str, Any]:
     """
     Get a specific template by ID including its full body content.
@@ -2111,7 +2207,7 @@ async def get_template(template_id: int, no_body: bool | None = None) -> dict[st
     return await safe_execute_async(_get_template_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
+@mcp.tool(annotations=SIDE_EFFECT_TOOL)
 async def create_template(
     name: str,
     subject: str,
@@ -2153,7 +2249,7 @@ async def create_template(
     return await safe_execute_async(_create_template_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
+@mcp.tool(annotations=SIDE_EFFECT_TOOL)
 async def update_template(
     template_id: int,
     name: str | None = None,
@@ -2220,7 +2316,7 @@ async def delete_template(template_id: int, confirm: bool = False) -> dict[str, 
     return await safe_execute_async(_delete_template_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY_TOOL)
 async def preview_template(
     body: str,
     template_type: str = "campaign"
@@ -2240,7 +2336,7 @@ async def preview_template(
     return await safe_execute_async(_preview_template_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY_TOOL)
 async def get_template_html_preview(
     template_id: int,
     body: str | None = None,
@@ -2266,7 +2362,7 @@ async def get_template_html_preview(
     return await safe_execute_async(_get_preview_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
+@mcp.tool(annotations=SIDE_EFFECT_TOOL)
 async def set_default_template(template_id: int) -> dict[str, Any]:
     """
     Set a template as the default template.
@@ -2296,7 +2392,8 @@ async def send_transactional_email(
     headers: list[dict[str, Any]] | None = None,
     messenger: str | None = None,
     content_type: str = "html",
-    altbody: str | None = None
+    altbody: str | None = None,
+    confirm_send: bool = False
 ) -> dict[str, Any]:
     """
     Send a transactional email using a template.
@@ -2315,8 +2412,19 @@ async def send_transactional_email(
         messenger: Messenger backend
         content_type: Content type (html, markdown, plain)
         altbody: Optional plain text alternative body
+        confirm_send: Must be true to send the transactional email
     """
     async def _send_transactional_logic() -> dict[str, Any]:
+        if error := send_confirmation_required(
+            confirm_send,
+            "send transactional email",
+            template_id=template_id,
+            subscriber_email=subscriber_email,
+            subscriber_id=subscriber_id,
+            subscriber_emails=subscriber_emails,
+            subscriber_ids=subscriber_ids,
+        ):
+            return error
         client = get_client()
         result = await client.send_transactional_email(
             template_id=template_id,
@@ -2444,7 +2552,7 @@ async def get_template_preview(template_id: str) -> str:
 
 
 # Media Management Tools
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY_TOOL)
 async def get_media_list() -> dict[str, Any]:
     """
     Get all media files from Listmonk.
@@ -2483,7 +2591,7 @@ async def get_media_list() -> dict[str, Any]:
     return await safe_execute_async(_get_media_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY_TOOL)
 async def get_media_file(media_id: int) -> dict[str, Any]:
     """
     Get a specific uploaded media file.
@@ -2499,7 +2607,7 @@ async def get_media_file(media_id: int) -> dict[str, Any]:
     return await safe_execute_async(_get_media_file_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
+@mcp.tool(annotations=SIDE_EFFECT_TOOL)
 async def upload_media_file(
     file_path: str,
     title: str | None = None
@@ -2530,7 +2638,7 @@ async def upload_media_file(
     return await safe_execute_async(_upload_media_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
+@mcp.tool(annotations=SIDE_EFFECT_TOOL)
 async def rename_media(media_id: int, new_title: str) -> dict[str, Any]:
     """
     Rename/update the title of a media file.
@@ -2638,7 +2746,7 @@ async def list_media_files() -> str:
 
 # Campaign Body Editing Tools
 
-@mcp.tool()
+@mcp.tool(annotations=SIDE_EFFECT_TOOL)
 async def replace_in_campaign_body(
     campaign_id: int,
     search: str,
@@ -2712,7 +2820,7 @@ async def replace_in_campaign_body(
     return await safe_execute_async(_replace_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
+@mcp.tool(annotations=SIDE_EFFECT_TOOL)
 async def regex_replace_in_campaign_body(
     campaign_id: int,
     pattern: str,
@@ -2787,7 +2895,7 @@ async def regex_replace_in_campaign_body(
     return await safe_execute_async(_regex_replace_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
+@mcp.tool(annotations=SIDE_EFFECT_TOOL)
 async def batch_replace_in_campaign_body(
     campaign_id: int,
     replacements: CampaignBodyReplacementsPayload
