@@ -66,6 +66,65 @@ async def test_reported_tool_schemas_include_documented_arguments() -> None:
     assert set(replacement_items["properties"]) == {"search", "replace"}
 
 
+@pytest.mark.asyncio
+async def test_destructive_tools_are_annotated_and_require_confirmation() -> None:
+    destructive_tools = {
+        "delete_subscriber_bounces",
+        "blocklist_subscriber",
+        "blocklist_subscribers",
+        "delete_subscribers_by_query",
+        "blocklist_subscribers_by_query",
+        "remove_subscriber",
+        "remove_subscribers",
+        "delete_bounce",
+        "delete_bounces",
+        "delete_mailing_list",
+        "delete_mailing_lists",
+        "delete_campaign",
+        "delete_campaigns",
+        "delete_template",
+        "delete_media_file",
+        "delete_gc_subscribers",
+        "delete_campaign_analytics",
+        "delete_unconfirmed_subscriptions",
+    }
+    tools = {tool.name: tool for tool in await server.mcp.list_tools()}
+
+    for tool_name in destructive_tools:
+        tool = tools[tool_name]
+        assert tool.annotations is not None
+        assert tool.annotations.destructiveHint is True
+        assert tool.annotations.readOnlyHint is False
+        assert tool.annotations.idempotentHint is False
+        assert tool.inputSchema["properties"]["confirm"]["type"] == "boolean"
+
+    result = await server.delete_campaign(campaign_id=7)
+
+    assert result["success"] is False
+    assert result["error"]["error_type"] == "ConfirmationRequired"
+    assert result["error"]["confirm_required"] is True
+    assert result["error"]["context"] == {"campaign_id": 7}
+
+
+@pytest.mark.asyncio
+async def test_email_sending_tools_are_marked_side_effecting() -> None:
+    email_tools = {
+        "send_subscriber_optin",
+        "send_campaign",
+        "test_campaign",
+        "send_transactional_email",
+    }
+    tools = {tool.name: tool for tool in await server.mcp.list_tools()}
+
+    for tool_name in email_tools:
+        tool = tools[tool_name]
+        assert tool.annotations is not None
+        assert tool.annotations.readOnlyHint is False
+        assert tool.annotations.destructiveHint is False
+        assert tool.annotations.idempotentHint is False
+        assert tool.annotations.openWorldHint is True
+
+
 def test_success_response() -> None:
     assert server.success_response("Done", resource_id=42) == {
         "success": True,

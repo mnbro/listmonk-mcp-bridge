@@ -6,6 +6,7 @@ from typing import Annotated, Any
 
 import typer
 from mcp.server import FastMCP
+from mcp.types import ToolAnnotations
 from pydantic import Field, WithJsonSchema
 
 from .client import ListmonkAPIError, ListmonkClient, create_client
@@ -52,6 +53,36 @@ async def lifespan(app: Any) -> Any:
 # Register tools directly on the production server. This avoids relying on
 # FastMCP private internals to copy tools between server instances.
 mcp = FastMCP("Listmonk MCP Server", lifespan=lifespan)
+
+DESTRUCTIVE_TOOL = ToolAnnotations(
+    readOnlyHint=False,
+    destructiveHint=True,
+    idempotentHint=False,
+    openWorldHint=True,
+)
+EMAIL_SEND_TOOL = ToolAnnotations(
+    readOnlyHint=False,
+    destructiveHint=False,
+    idempotentHint=False,
+    openWorldHint=True,
+)
+
+
+def confirmation_required(confirm: bool, operation: str, **context: Any) -> dict[str, Any] | None:
+    """Require an explicit confirmation flag before side effects that destroy data."""
+    if confirm:
+        return None
+
+    return {
+        "success": False,
+        "error": {
+            "error_type": "ConfirmationRequired",
+            "message": f"Set confirm=true to run destructive operation: {operation}",
+            "operation": operation,
+            "confirm_required": True,
+            "context": context,
+        },
+    }
 
 SettingsPayload = Annotated[
     dict[str, Any],
@@ -496,7 +527,7 @@ async def update_subscriber(
     return await safe_execute_async(_update_subscriber_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
+@mcp.tool(annotations=EMAIL_SEND_TOOL)
 async def send_subscriber_optin(subscriber_id: int) -> dict[str, Any]:
     """
     Send an opt-in confirmation email to a subscriber.
@@ -544,15 +575,18 @@ async def get_subscriber_bounces(subscriber_id: int) -> dict[str, Any]:
     return await safe_execute_async(_get_bounces_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
-async def delete_subscriber_bounces(subscriber_id: int) -> dict[str, Any]:
+@mcp.tool(annotations=DESTRUCTIVE_TOOL)
+async def delete_subscriber_bounces(subscriber_id: int, confirm: bool = False) -> dict[str, Any]:
     """
     Delete bounce records for a subscriber.
 
     Args:
         subscriber_id: ID of the subscriber
+        confirm: Must be true to delete bounce records
     """
     async def _delete_bounces_logic() -> dict[str, Any]:
+        if error := confirmation_required(confirm, "delete subscriber bounces", subscriber_id=subscriber_id):
+            return error
         client = get_client()
         result = await client.delete_subscriber_bounces(subscriber_id)
         return success_response("Subscriber bounces deleted", subscriber_id=subscriber_id, result=result.get("data", result))
@@ -560,15 +594,18 @@ async def delete_subscriber_bounces(subscriber_id: int) -> dict[str, Any]:
     return await safe_execute_async(_delete_bounces_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
-async def blocklist_subscriber(subscriber_id: int) -> dict[str, Any]:
+@mcp.tool(annotations=DESTRUCTIVE_TOOL)
+async def blocklist_subscriber(subscriber_id: int, confirm: bool = False) -> dict[str, Any]:
     """
     Blocklist a subscriber.
 
     Args:
         subscriber_id: ID of the subscriber to blocklist
+        confirm: Must be true to blocklist the subscriber
     """
     async def _blocklist_logic() -> dict[str, Any]:
+        if error := confirmation_required(confirm, "blocklist subscriber", subscriber_id=subscriber_id):
+            return error
         client = get_client()
         result = await client.blocklist_subscriber(subscriber_id)
         return success_response("Subscriber blocklisted", subscriber_id=subscriber_id, result=result.get("data", result))
@@ -611,10 +648,11 @@ async def manage_subscriber_lists(
     return await safe_execute_async(_manage_lists_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
+@mcp.tool(annotations=DESTRUCTIVE_TOOL)
 async def blocklist_subscribers(
     subscriber_ids: list[int] | None = None,
-    query: str | None = None
+    query: str | None = None,
+    confirm: bool = False
 ) -> dict[str, Any]:
     """
     Blocklist multiple subscribers by IDs or query.
@@ -622,8 +660,11 @@ async def blocklist_subscribers(
     Args:
         subscriber_ids: Subscriber IDs to blocklist
         query: SQL expression for subscribers to blocklist
+        confirm: Must be true to blocklist subscribers
     """
     async def _blocklist_many_logic() -> dict[str, Any]:
+        if error := confirmation_required(confirm, "blocklist subscribers", subscriber_ids=subscriber_ids, query=query):
+            return error
         client = get_client()
         result = await client.blocklist_subscribers(ids=subscriber_ids, query=query)
         return success_response("Subscribers blocklisted", result=result.get("data", result))
@@ -631,15 +672,18 @@ async def blocklist_subscribers(
     return await safe_execute_async(_blocklist_many_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
-async def delete_subscribers_by_query(query: str) -> dict[str, Any]:
+@mcp.tool(annotations=DESTRUCTIVE_TOOL)
+async def delete_subscribers_by_query(query: str, confirm: bool = False) -> dict[str, Any]:
     """
     Delete subscribers matched by a SQL expression.
 
     Args:
         query: SQL expression matching subscribers to delete
+        confirm: Must be true to delete matching subscribers
     """
     async def _delete_query_logic() -> dict[str, Any]:
+        if error := confirmation_required(confirm, "delete subscribers by query", query=query):
+            return error
         client = get_client()
         result = await client.delete_subscribers_by_query(query)
         return success_response("Subscribers deleted by query", result=result.get("data", result))
@@ -647,15 +691,18 @@ async def delete_subscribers_by_query(query: str) -> dict[str, Any]:
     return await safe_execute_async(_delete_query_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
-async def blocklist_subscribers_by_query(query: str) -> dict[str, Any]:
+@mcp.tool(annotations=DESTRUCTIVE_TOOL)
+async def blocklist_subscribers_by_query(query: str, confirm: bool = False) -> dict[str, Any]:
     """
     Blocklist subscribers matched by a SQL expression.
 
     Args:
         query: SQL expression matching subscribers to blocklist
+        confirm: Must be true to blocklist matching subscribers
     """
     async def _blocklist_query_logic() -> dict[str, Any]:
+        if error := confirmation_required(confirm, "blocklist subscribers by query", query=query):
+            return error
         client = get_client()
         result = await client.blocklist_subscribers_by_query(query)
         return success_response("Subscribers blocklisted by query", result=result.get("data", result))
@@ -692,15 +739,18 @@ async def manage_subscriber_lists_by_query(
     return await safe_execute_async(_manage_query_lists_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
-async def remove_subscriber(subscriber_id: int) -> dict[str, Any]:
+@mcp.tool(annotations=DESTRUCTIVE_TOOL)
+async def remove_subscriber(subscriber_id: int, confirm: bool = False) -> dict[str, Any]:
     """
     Remove a subscriber from Listmonk.
 
     Args:
         subscriber_id: ID of the subscriber to remove
+        confirm: Must be true to remove the subscriber
     """
     async def _remove_subscriber_logic() -> dict[str, Any]:
+        if error := confirmation_required(confirm, "remove subscriber", subscriber_id=subscriber_id):
+            return error
         client = get_client()
         result = await client.delete_subscriber(subscriber_id)
 
@@ -713,15 +763,18 @@ async def remove_subscriber(subscriber_id: int) -> dict[str, Any]:
     return await safe_execute_async(_remove_subscriber_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
-async def remove_subscribers(subscriber_ids: list[int]) -> dict[str, Any]:
+@mcp.tool(annotations=DESTRUCTIVE_TOOL)
+async def remove_subscribers(subscriber_ids: list[int], confirm: bool = False) -> dict[str, Any]:
     """
     Remove multiple subscribers from Listmonk.
 
     Args:
         subscriber_ids: Subscriber IDs to remove
+        confirm: Must be true to remove the subscribers
     """
     async def _remove_subscribers_logic() -> dict[str, Any]:
+        if error := confirmation_required(confirm, "remove subscribers", subscriber_ids=subscriber_ids):
+            return error
         client = get_client()
         result = await client.delete_subscribers(subscriber_ids)
         return success_response("Subscribers removed", subscriber_ids=subscriber_ids, result=result.get("data", result))
@@ -811,15 +864,18 @@ async def get_bounce(bounce_id: int) -> dict[str, Any]:
     return await safe_execute_async(_get_bounce_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
-async def delete_bounce(bounce_id: int) -> dict[str, Any]:
+@mcp.tool(annotations=DESTRUCTIVE_TOOL)
+async def delete_bounce(bounce_id: int, confirm: bool = False) -> dict[str, Any]:
     """
     Delete a bounce record by ID.
 
     Args:
         bounce_id: Bounce ID
+        confirm: Must be true to delete the bounce record
     """
     async def _delete_bounce_logic() -> dict[str, Any]:
+        if error := confirmation_required(confirm, "delete bounce", bounce_id=bounce_id):
+            return error
         client = get_client()
         result = await client.delete_bounce(bounce_id)
         return success_response("Bounce deleted", bounce_id=bounce_id, result=result.get("data", result))
@@ -827,10 +883,11 @@ async def delete_bounce(bounce_id: int) -> dict[str, Any]:
     return await safe_execute_async(_delete_bounce_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
+@mcp.tool(annotations=DESTRUCTIVE_TOOL)
 async def delete_bounces(
     bounce_ids: list[int] | None = None,
-    all: bool = False
+    all: bool = False,
+    confirm: bool = False
 ) -> dict[str, Any]:
     """
     Delete multiple bounce records.
@@ -838,8 +895,11 @@ async def delete_bounces(
     Args:
         bounce_ids: Bounce IDs to delete
         all: Delete all bounce records
+        confirm: Must be true to delete bounce records
     """
     async def _delete_bounces_logic() -> dict[str, Any]:
+        if error := confirmation_required(confirm, "delete bounces", bounce_ids=bounce_ids, all=all):
+            return error
         client = get_client()
         result = await client.delete_bounces(bounce_ids=bounce_ids, all=all)
         return success_response("Bounces deleted", result=result.get("data", result))
@@ -1123,15 +1183,18 @@ async def update_mailing_list(
     return await safe_execute_async(_update_list_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
-async def delete_mailing_list(list_id: int) -> dict[str, Any]:
+@mcp.tool(annotations=DESTRUCTIVE_TOOL)
+async def delete_mailing_list(list_id: int, confirm: bool = False) -> dict[str, Any]:
     """
     Delete a mailing list.
 
     Args:
         list_id: ID of the list to delete
+        confirm: Must be true to delete the mailing list
     """
     async def _delete_list_logic() -> dict[str, Any]:
+        if error := confirmation_required(confirm, "delete mailing list", list_id=list_id):
+            return error
         client = get_client()
         result = await client.delete_list(list_id)
 
@@ -1144,10 +1207,11 @@ async def delete_mailing_list(list_id: int) -> dict[str, Any]:
     return await safe_execute_async(_delete_list_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
+@mcp.tool(annotations=DESTRUCTIVE_TOOL)
 async def delete_mailing_lists(
     list_ids: list[int] | None = None,
-    query: str | None = None
+    query: str | None = None,
+    confirm: bool = False
 ) -> dict[str, Any]:
     """
     Delete multiple mailing lists by IDs or query.
@@ -1155,8 +1219,11 @@ async def delete_mailing_lists(
     Args:
         list_ids: List IDs to delete
         query: Optional list search query to delete
+        confirm: Must be true to delete mailing lists
     """
     async def _delete_lists_logic() -> dict[str, Any]:
+        if error := confirmation_required(confirm, "delete mailing lists", list_ids=list_ids, query=query):
+            return error
         client = get_client()
         result = await client.delete_lists(ids=list_ids, query=query)
         return success_response("Mailing lists deleted", result=result.get("data", result))
@@ -1464,7 +1531,7 @@ async def update_campaign(
     return await safe_execute_async(_update_campaign_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
+@mcp.tool(annotations=EMAIL_SEND_TOOL)
 async def send_campaign(campaign_id: int) -> dict[str, Any]:
     """
     Send a campaign immediately.
@@ -1525,15 +1592,18 @@ async def update_campaign_status(campaign_id: int, status: str) -> dict[str, Any
     return await safe_execute_async(_update_status_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
-async def delete_campaign(campaign_id: int) -> dict[str, Any]:
+@mcp.tool(annotations=DESTRUCTIVE_TOOL)
+async def delete_campaign(campaign_id: int, confirm: bool = False) -> dict[str, Any]:
     """
     Delete a campaign.
 
     Args:
         campaign_id: ID of the campaign to delete
+        confirm: Must be true to delete the campaign
     """
     async def _delete_campaign_logic() -> dict[str, Any]:
+        if error := confirmation_required(confirm, "delete campaign", campaign_id=campaign_id):
+            return error
         client = get_client()
         result = await client.delete_campaign(campaign_id)
         return success_response("Campaign deleted", campaign_id=campaign_id, result=result.get("data", result))
@@ -1541,10 +1611,11 @@ async def delete_campaign(campaign_id: int) -> dict[str, Any]:
     return await safe_execute_async(_delete_campaign_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
+@mcp.tool(annotations=DESTRUCTIVE_TOOL)
 async def delete_campaigns(
     campaign_ids: list[int] | None = None,
-    query: str | None = None
+    query: str | None = None,
+    confirm: bool = False
 ) -> dict[str, Any]:
     """
     Delete multiple campaigns by IDs or query.
@@ -1552,8 +1623,11 @@ async def delete_campaigns(
     Args:
         campaign_ids: Campaign IDs to delete
         query: Optional campaign query to delete
+        confirm: Must be true to delete campaigns
     """
     async def _delete_campaigns_logic() -> dict[str, Any]:
+        if error := confirmation_required(confirm, "delete campaigns", campaign_ids=campaign_ids, query=query):
+            return error
         client = get_client()
         result = await client.delete_campaigns(ids=campaign_ids, query=query)
         return success_response("Campaigns deleted", result=result.get("data", result))
@@ -1738,7 +1812,7 @@ async def convert_campaign_content(
     return await safe_execute_async(_convert_content_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
+@mcp.tool(annotations=EMAIL_SEND_TOOL)
 async def test_campaign(
     campaign_id: int,
     subscribers: list[str],
@@ -2122,15 +2196,18 @@ async def update_template(
     return await safe_execute_async(_update_template_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
-async def delete_template(template_id: int) -> dict[str, Any]:
+@mcp.tool(annotations=DESTRUCTIVE_TOOL)
+async def delete_template(template_id: int, confirm: bool = False) -> dict[str, Any]:
     """
     Delete an email template.
 
     Args:
         template_id: ID of the template to delete
+        confirm: Must be true to delete the template
     """
     async def _delete_template_logic() -> dict[str, Any]:
+        if error := confirmation_required(confirm, "delete template", template_id=template_id):
+            return error
         client = get_client()
         result = await client.delete_template(template_id)
 
@@ -2205,7 +2282,7 @@ async def set_default_template(template_id: int) -> dict[str, Any]:
     return await safe_execute_async(_set_default_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
+@mcp.tool(annotations=EMAIL_SEND_TOOL)
 async def send_transactional_email(
     template_id: int,
     subscriber_email: str | None = None,
@@ -2479,18 +2556,21 @@ async def rename_media(media_id: int, new_title: str) -> dict[str, Any]:
     return await safe_execute_async(_rename_media_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
-async def delete_media_file(media_id: int) -> dict[str, Any]:
+@mcp.tool(annotations=DESTRUCTIVE_TOOL)
+async def delete_media_file(media_id: int, confirm: bool = False) -> dict[str, Any]:
     """
     Delete a media file from Listmonk.
 
     Args:
         media_id: ID of the media file to delete
+        confirm: Must be true to delete the media file
 
     Returns:
         Success message
     """
     async def _delete_media_logic() -> dict[str, Any]:
+        if error := confirmation_required(confirm, "delete media file", media_id=media_id):
+            return error
         client = get_client()
         result = await client.delete_media(media_id)
 
@@ -2794,15 +2874,18 @@ async def batch_replace_in_campaign_body(
 
 
 # Maintenance Tools
-@mcp.tool()
-async def delete_gc_subscribers(type: str) -> dict[str, Any]:
+@mcp.tool(annotations=DESTRUCTIVE_TOOL)
+async def delete_gc_subscribers(type: str, confirm: bool = False) -> dict[str, Any]:
     """
     Garbage collect orphaned or blocklisted subscribers.
 
     Args:
         type: Subscriber GC type from Listmonk maintenance API
+        confirm: Must be true to delete garbage-collected subscribers
     """
     async def _delete_gc_subscribers_logic() -> dict[str, Any]:
+        if error := confirmation_required(confirm, "delete subscriber garbage collection", type=type):
+            return error
         client = get_client()
         result = await client.delete_gc_subscribers(type)
         return success_response("Subscriber garbage collection completed", result=result.get("data", result))
@@ -2810,16 +2893,19 @@ async def delete_gc_subscribers(type: str) -> dict[str, Any]:
     return await safe_execute_async(_delete_gc_subscribers_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
-async def delete_campaign_analytics(type: str, before_date: str) -> dict[str, Any]:
+@mcp.tool(annotations=DESTRUCTIVE_TOOL)
+async def delete_campaign_analytics(type: str, before_date: str, confirm: bool = False) -> dict[str, Any]:
     """
     Delete campaign analytics before a date.
 
     Args:
         type: Analytics type from Listmonk maintenance API
         before_date: Delete analytics before this date
+        confirm: Must be true to delete campaign analytics
     """
     async def _delete_campaign_analytics_logic() -> dict[str, Any]:
+        if error := confirmation_required(confirm, "delete campaign analytics", type=type, before_date=before_date):
+            return error
         client = get_client()
         result = await client.delete_campaign_analytics(type=type, before_date=before_date)
         return success_response("Campaign analytics deleted", result=result.get("data", result))
@@ -2827,15 +2913,18 @@ async def delete_campaign_analytics(type: str, before_date: str) -> dict[str, An
     return await safe_execute_async(_delete_campaign_analytics_logic)  # type: ignore[no-any-return]
 
 
-@mcp.tool()
-async def delete_unconfirmed_subscriptions(before_date: str) -> dict[str, Any]:
+@mcp.tool(annotations=DESTRUCTIVE_TOOL)
+async def delete_unconfirmed_subscriptions(before_date: str, confirm: bool = False) -> dict[str, Any]:
     """
     Delete unconfirmed subscriptions before a date.
 
     Args:
         before_date: Delete subscriptions before this date
+        confirm: Must be true to delete unconfirmed subscriptions
     """
     async def _delete_unconfirmed_logic() -> dict[str, Any]:
+        if error := confirmation_required(confirm, "delete unconfirmed subscriptions", before_date=before_date):
+            return error
         client = get_client()
         result = await client.delete_unconfirmed_subscriptions(before_date)
         return success_response("Unconfirmed subscriptions deleted", result=result.get("data", result))

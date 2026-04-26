@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.4
+
+- Add MCP annotations for destructive and email-sending tools so clients can surface side-effect risk.
+- Require `confirm=true` before destructive tools delete, remove, blocklist, garbage collect, or clean analytics data.
+- Add regression coverage for destructive guardrails and email-sending tool annotations.
+
 ## 0.1.3
 
 - Emit explicit MCP JSON schemas for complex tool arguments used by settings, SMTP testing, subscriber import, and batch campaign body replacement tools.
