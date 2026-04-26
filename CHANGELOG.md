@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.8
+
+- Update README production, guardrail, audit logging, rate limiting, and staging smoke-test documentation to match current server behavior.
+
 ## 0.1.7
 
 - Require `confirm_read=true` for sensitive read tools that expose settings, logs, server config, or full subscriber exports.
