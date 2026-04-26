@@ -79,6 +79,8 @@ async def test_update_subscriber_partial_name_omits_email() -> None:
 
     await client.update_subscriber(subscriber_id=7, name="New Name")
 
+    assert last_request(client)["method"] == "PATCH"
+    assert last_request(client)["endpoint"] == "/api/subscribers/7"
     assert last_payload(client) == {"name": "New Name"}
 
 
@@ -88,6 +90,7 @@ async def test_update_subscriber_partial_status_only() -> None:
 
     await client.update_subscriber(subscriber_id=7, status="disabled")
 
+    assert last_request(client)["method"] == "PATCH"
     assert last_payload(client) == {"status": "disabled"}
 
 
@@ -97,6 +100,7 @@ async def test_update_subscriber_partial_lists() -> None:
 
     await client.update_subscriber(subscriber_id=7, lists=[1, 2])
 
+    assert last_request(client)["method"] == "PATCH"
     assert last_payload(client) == {"lists": [1, 2]}
 
 

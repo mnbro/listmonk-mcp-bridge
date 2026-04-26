@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.2
+
+- Use Listmonk's partial subscriber update endpoint (`PATCH /api/subscribers/{id}`) so updating only `name`, `status`, `lists`, or `attributes` does not require an `email`.
+- Align package and runtime version metadata.
+
 ## 0.1.1
 
 - Align MCP tools with the complete Listmonk Swagger API.

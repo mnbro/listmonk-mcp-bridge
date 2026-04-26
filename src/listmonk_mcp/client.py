@@ -64,7 +64,7 @@ class ListmonkClient:
             timeout=self.config.timeout,
             limits=httpx.Limits(max_keepalive_connections=5, max_connections=10),
             headers={
-                "User-Agent": "Listmonk-MCP-Server/0.1.0",
+                "User-Agent": "Listmonk-MCP-Server/0.1.2",
                 "Accept": "application/json",
                 "Content-Type": "application/json",
                 "Authorization": f"token {auth_token}"
@@ -288,7 +288,7 @@ class ListmonkClient:
         if preconfirm_subscriptions is not None:
             data["preconfirm_subscriptions"] = preconfirm_subscriptions
 
-        return await self._request("PUT", f"/api/subscribers/{subscriber_id}", json_data=data)
+        return await self._request("PATCH", f"/api/subscribers/{subscriber_id}", json_data=data)
 
     async def delete_subscriber(self, subscriber_id: int) -> dict[str, Any]:
         """Delete a subscriber."""
@@ -560,7 +560,7 @@ class ListmonkClient:
             timeout=self.config.timeout,
             headers={
                 "Authorization": f"token {self.config.username}:{self.config.password}",
-                "User-Agent": "Listmonk-MCP-Server/0.1.0",
+                "User-Agent": "Listmonk-MCP-Server/0.1.2",
                 "Accept": "application/json",
             }
         )
@@ -1077,7 +1077,7 @@ class ListmonkClient:
             timeout=self.config.timeout,
             headers={
                 "Authorization": f"token {self.config.username}:{self.config.password}",
-                "User-Agent": "Listmonk-MCP-Server/0.1.0",
+                "User-Agent": "Listmonk-MCP-Server/0.1.2",
                 "Accept": "application/json",
                 # No Content-Type - will be set automatically by httpx for multipart
             }

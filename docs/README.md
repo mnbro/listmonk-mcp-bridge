@@ -60,6 +60,6 @@ The MCP server exposes 81 tools covering all 72 Listmonk Swagger operations plus
 
 ## Tool Behavior Notes
 
-- `update_subscriber` supports partial updates and omits fields that were not provided.
+- `update_subscriber` uses Listmonk's `PATCH /api/subscribers/{id}` endpoint for partial updates and omits fields that were not provided.
 - `create_template` supports campaign, `campaign_visual`, and transactional (`tx`) templates, including `subject` and `body_source`.
 - `create_campaign` converts plain text bodies to escaped HTML by default when `content_type="plain"`. Set `auto_convert_plain_to_html=false` to preserve plain text unchanged.
