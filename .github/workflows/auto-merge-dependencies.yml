@@ -21,7 +21,7 @@ jobs:
     steps:
       - name: Merge successful bot dependency PRs
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN_FOR_UPDATES || github.token }}
           PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
           REPO: ${{ github.repository }}
         run: |
