@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "listmonk-mcp-bridge"
-version = "0.1.8"
+version = "0.1.9"
 description = "Production-ready MCP server for Listmonk newsletter and mailing list management"
 readme = "README.md"
 license = "MIT"

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.9
+
+- Add automated dependency update PRs for uv, GitHub Actions, and Nix flake inputs.
+- Add auto-merge workflow for successful bot dependency update PRs.
+
 ## 0.1.8
 
 - Update README production, guardrail, audit logging, rate limiting, and staging smoke-test documentation to match current server behavior.
