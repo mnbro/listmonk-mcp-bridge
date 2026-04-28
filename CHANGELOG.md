@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.11](https://github.com/mnbro/listmonk-mcp-bridge/compare/v0.1.10...v0.1.11) (2026-04-28)
+
+
+### Dependencies
+
+* bump pygments from 2.19.2 to 2.20.0 ([#21](https://github.com/mnbro/listmonk-mcp-bridge/issues/21)) ([7f8168c](https://github.com/mnbro/listmonk-mcp-bridge/commit/7f8168cd73f533744cfc32439689b3baa5ef84f1))
+* bump requests from 2.32.4 to 2.33.0 ([#25](https://github.com/mnbro/listmonk-mcp-bridge/issues/25)) ([0cfb72b](https://github.com/mnbro/listmonk-mcp-bridge/commit/0cfb72b5196074ace503b6e1e66765f1da139acc))
+* bump urllib3 from 2.5.0 to 2.6.3 ([#26](https://github.com/mnbro/listmonk-mcp-bridge/issues/26)) ([4043844](https://github.com/mnbro/listmonk-mcp-bridge/commit/404384439642672a235cb8b26f3d6c88a95c4ebf))
+
 ## [0.1.10](https://github.com/mnbro/listmonk-mcp-bridge/compare/v0.1.9...v0.1.10) (2026-04-28)
 
 
