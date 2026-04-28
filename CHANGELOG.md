@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.13](https://github.com/mnbro/listmonk-mcp-bridge/compare/v0.1.12...v0.1.13) (2026-04-28)
+
+
+### Dependencies
+
+* update vulnerable starlette dependency ([9c056cc](https://github.com/mnbro/listmonk-mcp-bridge/commit/9c056cc62754e078a836d816060af1c8dc09f1dd))
+
 ## [0.1.12](https://github.com/mnbro/listmonk-mcp-bridge/compare/v0.1.11...v0.1.12) (2026-04-28)
 
 
