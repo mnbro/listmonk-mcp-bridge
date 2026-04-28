@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.12](https://github.com/mnbro/listmonk-mcp-bridge/compare/v0.1.11...v0.1.12) (2026-04-28)
+
+
+### Dependencies
+
+* update vulnerable Python lockfile dependencies ([d2c0a1a](https://github.com/mnbro/listmonk-mcp-bridge/commit/d2c0a1ae20d83ca997587ca78c1dfa322c401aa6))
+
 ## [0.1.11](https://github.com/mnbro/listmonk-mcp-bridge/compare/v0.1.10...v0.1.11) (2026-04-28)
 
 
