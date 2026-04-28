@@ -37,6 +37,7 @@ ENV/
 .pytest_cache/
 .coverage
 htmlcov/
+site/
 .tox/
 
 # Type checking
@@ -54,11 +55,6 @@ dmypy.json
 # OS
 .DS_Store
 Thumbs.db
-
-# Nix
-result
-result-*
-.direnv/
 
 # Logs
 *.log

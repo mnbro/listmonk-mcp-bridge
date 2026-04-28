@@ -40,23 +40,3 @@ updates:
         applies-to: security-updates
         patterns:
           - "*"
-
-  - package-ecosystem: "nix"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "07:00"
-      timezone: "Etc/UTC"
-    labels:
-      - "dependencies"
-      - "security"
-      - "nix"
-    commit-message:
-      prefix: "fix(deps)"
-    open-pull-requests-limit: 0
-    groups:
-      nix-security:
-        applies-to: security-updates
-        patterns:
-          - "*"

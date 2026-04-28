@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Remove optional Nix flake development infrastructure and CI checks.
+- Update GitHub Pages documentation deployment to support manual dispatch after Pages is enabled.
+
 ## [0.1.13](https://github.com/mnbro/listmonk-mcp-bridge/compare/v0.1.12...v0.1.13) (2026-04-28)
 
 
@@ -40,7 +45,7 @@
 
 ## 0.1.9
 
-- Add automated dependency update PRs for uv, GitHub Actions, and Nix flake inputs.
+- Add automated dependency update PRs for uv and GitHub Actions.
 - Add auto-merge workflow for successful bot dependency update PRs.
 
 ## 0.1.8
