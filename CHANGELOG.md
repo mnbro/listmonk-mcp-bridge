@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.1.10](https://github.com/mnbro/listmonk-mcp-bridge/compare/v0.1.9...v0.1.10) (2026-04-28)
+
+
+### Dependencies
+
+* bump black from 25.1.0 to 26.3.1 ([#7](https://github.com/mnbro/listmonk-mcp-bridge/issues/7)) ([c9351a3](https://github.com/mnbro/listmonk-mcp-bridge/commit/c9351a30dbf31a5b51be05d502beb85171c793b8))
+* bump mcp from 1.11.0 to 1.27.0 ([#13](https://github.com/mnbro/listmonk-mcp-bridge/issues/13)) ([2c54a24](https://github.com/mnbro/listmonk-mcp-bridge/commit/2c54a249078e5002615152f5ddc2a41b0e13eb1d))
+* bump mkdocs-material from 9.6.16 to 9.7.6 ([#18](https://github.com/mnbro/listmonk-mcp-bridge/issues/18)) ([e2219c6](https://github.com/mnbro/listmonk-mcp-bridge/commit/e2219c68d3db69c4fd62fc52d49d900b34f6b57c))
+* bump pydantic-settings from 2.10.1 to 2.14.0 ([#11](https://github.com/mnbro/listmonk-mcp-bridge/issues/11)) ([32863c2](https://github.com/mnbro/listmonk-mcp-bridge/commit/32863c27254a334de50b359388c7c271f0974e35))
+* bump pytest from 8.4.1 to 9.0.3 ([#15](https://github.com/mnbro/listmonk-mcp-bridge/issues/15)) ([1cd5ef2](https://github.com/mnbro/listmonk-mcp-bridge/commit/1cd5ef24ad8824523c8147e9ce51230d413be131))
+* bump pytest-httpx from 0.35.0 to 0.36.2 ([#16](https://github.com/mnbro/listmonk-mcp-bridge/issues/16)) ([e2365cc](https://github.com/mnbro/listmonk-mcp-bridge/commit/e2365ccef8ca5243c4f62364f6ba50b67c626961))
+* bump pytest-mock from 3.14.1 to 3.15.1 ([#10](https://github.com/mnbro/listmonk-mcp-bridge/issues/10)) ([29671bc](https://github.com/mnbro/listmonk-mcp-bridge/commit/29671bcf525ac424afd10d562b2a9729f6ec9aec))
+* bump ruff from 0.12.3 to 0.15.12 ([#14](https://github.com/mnbro/listmonk-mcp-bridge/issues/14)) ([67be781](https://github.com/mnbro/listmonk-mcp-bridge/commit/67be7810ebce04b3f96441e73b7dde24560a4c21))
+* bump typer from 0.16.0 to 0.25.0 ([#19](https://github.com/mnbro/listmonk-mcp-bridge/issues/19)) ([fb3d439](https://github.com/mnbro/listmonk-mcp-bridge/commit/fb3d439fb80ec7ecfd8f8691da6f4ce77c5be026))
+
 ## 0.1.9
 
 - Add automated dependency update PRs for uv, GitHub Actions, and Nix flake inputs.
