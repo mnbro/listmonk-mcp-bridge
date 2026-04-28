@@ -10,10 +10,16 @@ updates:
       timezone: "Etc/UTC"
     labels:
       - "dependencies"
+      - "security"
       - "python"
     commit-message:
-      prefix: "deps"
-    open-pull-requests-limit: 5
+      prefix: "fix(deps)"
+    open-pull-requests-limit: 0
+    groups:
+      python-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
 
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -24,7 +30,33 @@ updates:
       timezone: "Etc/UTC"
     labels:
       - "dependencies"
+      - "security"
       - "github-actions"
     commit-message:
-      prefix: "ci"
-    open-pull-requests-limit: 5
+      prefix: "ci(deps)"
+    open-pull-requests-limit: 0
+    groups:
+      github-actions-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+
+  - package-ecosystem: "nix"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "07:00"
+      timezone: "Etc/UTC"
+    labels:
+      - "dependencies"
+      - "security"
+      - "nix"
+    commit-message:
+      prefix: "fix(deps)"
+    open-pull-requests-limit: 0
+    groups:
+      nix-security:
+        applies-to: security-updates
+        patterns:
+          - "*"

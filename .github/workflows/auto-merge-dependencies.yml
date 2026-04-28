@@ -22,14 +22,25 @@ jobs:
     if: github.event_name == 'pull_request_target'
     runs-on: ubuntu-latest
     steps:
-      - name: Enable auto-merge for bot dependency PRs
-        if: >
-          !github.event.pull_request.draft &&
-          contains(fromJSON('["dependabot[bot]", "github-actions[bot]"]'), github.event.pull_request.user.login)
+      - name: Enable auto-merge for trusted automation PRs
+        if: ${{ !github.event.pull_request.draft }}
         env:
           GH_TOKEN: ${{ github.token }}
           PR_URL: ${{ github.event.pull_request.html_url }}
         run: |
+          author="$(gh pr view "$PR_URL" --json author --jq .author.login)"
+          head_ref="$(gh pr view "$PR_URL" --json headRefName --jq .headRefName)"
+          labels="$(gh pr view "$PR_URL" --json labels --jq '[.labels[].name] | join(",")')"
+
+          if { [ "$author" = "dependabot[bot]" ] || [ "$author" = "app/dependabot" ] || [ "$author" = "github-actions[bot]" ]; } && [[ "$labels" == *security* ]]; then
+            echo "Enabling auto-merge for security dependency PR."
+          elif [[ "$head_ref" == release-please--* ]] && [[ "$labels" == *autorelease* ]]; then
+            echo "Enabling auto-merge for release-please PR."
+          else
+            echo "Skipping PR from $author on $head_ref with labels: $labels"
+            exit 0
+          fi
+
           gh pr merge "$PR_URL" --auto --squash --delete-branch || \
             echo "Native auto-merge could not be enabled; the workflow_run fallback will merge after CI succeeds."
 
@@ -48,11 +59,13 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           author="$(gh pr view "$PR_NUMBER" --repo "$REPO" --json author --jq .author.login)"
-          case "$author" in
-            "dependabot[bot]"|"github-actions[bot]")
-              gh pr merge "$PR_NUMBER" --repo "$REPO" --squash --delete-branch
-              ;;
-            *)
-              echo "Skipping PR #$PR_NUMBER from $author"
-              ;;
-          esac
+          head_ref="$(gh pr view "$PR_NUMBER" --repo "$REPO" --json headRefName --jq .headRefName)"
+          labels="$(gh pr view "$PR_NUMBER" --repo "$REPO" --json labels --jq '[.labels[].name] | join(",")')"
+
+          if { [ "$author" = "dependabot[bot]" ] || [ "$author" = "app/dependabot" ] || [ "$author" = "github-actions[bot]" ]; } && [[ "$labels" == *security* ]]; then
+            gh pr merge "$PR_NUMBER" --repo "$REPO" --squash --delete-branch
+          elif [[ "$head_ref" == release-please--* ]] && [[ "$labels" == *autorelease* ]]; then
+            gh pr merge "$PR_NUMBER" --repo "$REPO" --squash --delete-branch
+          else
+            echo "Skipping PR #$PR_NUMBER from $author on $head_ref with labels: $labels"
+          fi

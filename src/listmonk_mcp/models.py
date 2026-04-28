@@ -1,7 +1,7 @@
 """Pydantic models for Listmonk MCP server data validation and serialization."""
 
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import (
@@ -14,14 +14,14 @@ from pydantic import (
 
 # Enums for status fields and types
 
-class SubscriberStatusEnum(str, Enum):
+class SubscriberStatusEnum(StrEnum):
     """Subscriber status enumeration."""
     enabled = "enabled"
     disabled = "disabled"
     blocklisted = "blocklisted"
 
 
-class CampaignStatusEnum(str, Enum):
+class CampaignStatusEnum(StrEnum):
     """Campaign status enumeration."""
     draft = "draft"
     scheduled = "scheduled"
@@ -31,13 +31,13 @@ class CampaignStatusEnum(str, Enum):
     cancelled = "cancelled"
 
 
-class CampaignTypeEnum(str, Enum):
+class CampaignTypeEnum(StrEnum):
     """Campaign type enumeration."""
     regular = "regular"
     optin = "optin"
 
 
-class ContentTypeEnum(str, Enum):
+class ContentTypeEnum(StrEnum):
     """Content type enumeration."""
     richtext = "richtext"
     html = "html"
@@ -45,19 +45,19 @@ class ContentTypeEnum(str, Enum):
     plain = "plain"
 
 
-class ListTypeEnum(str, Enum):
+class ListTypeEnum(StrEnum):
     """Mailing list type enumeration."""
     public = "public"
     private = "private"
 
 
-class OptinTypeEnum(str, Enum):
+class OptinTypeEnum(StrEnum):
     """Opt-in type enumeration."""
     single = "single"
     double = "double"
 
 
-class TemplateTypeEnum(str, Enum):
+class TemplateTypeEnum(StrEnum):
     """Template type enumeration."""
     campaign = "campaign"
     campaign_visual = "campaign_visual"

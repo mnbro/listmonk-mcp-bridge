@@ -12,7 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.11", "3.12"]
+        python-version: ["3.11", "3.12", "3.13"]
 
     steps:
       - name: Checkout code
@@ -28,8 +28,11 @@ jobs:
         with:
           enable-cache: true
 
+      - name: Check lockfile freshness
+        run: uv lock --check
+
       - name: Sync dependencies
-        run: uv sync --extra dev
+        run: uv sync --locked --all-extras
 
       - name: Run linting
         run: uv run ruff check .
@@ -42,3 +45,18 @@ jobs:
 
       - name: Build package
         run: uv build
+
+      - name: Check installed package compatibility
+        run: uv pip check
+
+  nix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Install Nix
+        uses: DeterminateSystems/determinate-nix-action@v3
+
+      - name: Check flake compatibility
+        run: nix flake check

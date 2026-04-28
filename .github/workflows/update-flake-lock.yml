@@ -2,8 +2,6 @@ name: Update Nix Flake Lock
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "0 7 * * 1"
 
 permissions:
   contents: write
