@@ -2,10 +2,19 @@
 
 ## Unreleased
 
+- Add a Debian slim based Docker image for the MCP server.
+- Add a GitHub Container Registry publishing workflow and package badge.
+- Add container documentation for Docker-based MCP client configuration.
 - Rewrite the runtime implementation around a compact Listmonk API client and explicit MCP safety guardrails.
 - Change project licensing to PolyForm Internal Use License 1.0.0.
 - Remove optional Nix flake development infrastructure and CI checks.
 - Update GitHub Pages documentation deployment to support manual dispatch after Pages is enabled.
+
+## 0.3.0
+
+- Add a Debian slim based Docker image for the MCP server.
+- Add a GitHub Container Registry publishing workflow and package badge.
+- Add container documentation for Docker-based MCP client configuration.
 
 ## 0.2.0
 

@@ -1,6 +1,6 @@
-site_name: Listmonk MCP Server
+site_name: Listmonk MCP Bridge
 site_description: MCP server for Listmonk newsletter management
-site_author: Rohan Verma
+site_author: mnbro
 site_url: https://mnbro.github.io/listmonk-mcp-bridge/
 
 repo_name: mnbro/listmonk-mcp-bridge
@@ -48,12 +48,13 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Setup:
+    - Container Image: container.md
     - Claude Desktop: claude-desktop.md
     - VS Code: vscode.md
     - Cline: cline.md
     - Windsurf & Cursor: windsurf-cursor.md
   - Reference:
-    - Docker Setup: docker-setup.md
+    - Listmonk Docker Setup: docker-setup.md
 
 plugins:
   - search

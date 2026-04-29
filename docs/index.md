@@ -6,6 +6,8 @@ Repository: https://github.com/mnbro/listmonk-mcp-bridge
 
 PyPI: https://pypi.org/project/listmonk-mcp-bridge/
 
+Container image: `ghcr.io/mnbro/listmonk-mcp-bridge:latest`
+
 ## Overview
 
 The bridge connects MCP clients to the Listmonk REST API through typed tools instead of ad-hoc HTTP calls.
@@ -53,6 +55,16 @@ Install with `pip`:
 
 ```bash
 pip install listmonk-mcp-bridge
+```
+
+Run the Debian slim based container image:
+
+```bash
+docker run --rm -i \
+  --env LISTMONK_MCP_URL=https://listmonk.example.com \
+  --env LISTMONK_MCP_USERNAME \
+  --env LISTMONK_MCP_PASSWORD \
+  ghcr.io/mnbro/listmonk-mcp-bridge:latest
 ```
 
 After installation, these commands are available:
@@ -167,6 +179,7 @@ If installed globally:
 
 Client-specific setup:
 
+- [Container image](container.md)
 - [Claude Desktop](claude-desktop.md)
 - [VS Code](vscode.md)
 - [Cline](cline.md)

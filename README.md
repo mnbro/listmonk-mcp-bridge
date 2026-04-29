@@ -5,6 +5,7 @@
 [![License](https://img.shields.io/badge/license-PolyForm%20Internal%20Use%201.0.0-blue)](LICENSE)
 [![CI](https://github.com/mnbro/listmonk-mcp-bridge/actions/workflows/ci.yml/badge.svg)](https://github.com/mnbro/listmonk-mcp-bridge/actions/workflows/ci.yml)
 [![Docs](https://github.com/mnbro/listmonk-mcp-bridge/actions/workflows/docs.yml/badge.svg)](https://github.com/mnbro/listmonk-mcp-bridge/actions/workflows/docs.yml)
+[![Container](https://img.shields.io/badge/package-ghcr.io%2Fmnbro%2Flistmonk--mcp--bridge-blue)](https://github.com/mnbro/listmonk-mcp-bridge/pkgs/container/listmonk-mcp-bridge)
 [![Ruff](https://img.shields.io/badge/lint-ruff-46a2f1)](https://docs.astral.sh/ruff/)
 [![mypy](https://img.shields.io/badge/type%20checked-mypy-blue)](https://mypy-lang.org/)
 [![GitHub release](https://img.shields.io/github/v/release/mnbro/listmonk-mcp-bridge)](https://github.com/mnbro/listmonk-mcp-bridge/releases)
@@ -70,6 +71,20 @@ Use a dedicated Listmonk API user and token. Do not use the default admin accoun
   }
 }
 ```
+
+## Docker
+
+The Debian slim based container image is published to GitHub Container Registry:
+
+```bash
+docker run --rm -i \
+  --env LISTMONK_MCP_URL=https://listmonk.example.com \
+  --env LISTMONK_MCP_USERNAME \
+  --env LISTMONK_MCP_PASSWORD \
+  ghcr.io/mnbro/listmonk-mcp-bridge:latest
+```
+
+See the [container documentation](https://mnbro.github.io/listmonk-mcp-bridge/container/) for MCP client configuration.
 
 ## Development
 

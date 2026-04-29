@@ -1,6 +1,6 @@
-# Docker Setup
+# Listmonk Docker Setup
 
-If you need to set up Listmonk using Docker, you can use the included Docker Compose configuration.
+This page is for running a local Listmonk instance with Docker. To run the MCP server itself as a container, see [Container Image](container.md).
 
 ## Quick Docker Setup
 
