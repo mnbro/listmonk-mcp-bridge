@@ -2,7 +2,7 @@
 
 [![PyPI version](https://img.shields.io/pypi/v/listmonk-mcp-bridge.svg)](https://pypi.org/project/listmonk-mcp-bridge/)
 [![Python versions](https://img.shields.io/pypi/pyversions/listmonk-mcp-bridge.svg)](https://pypi.org/project/listmonk-mcp-bridge/)
-[![License](https://img.shields.io/github/license/mnbro/listmonk-mcp-bridge.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-PolyForm%20Internal%20Use%201.0.0-blue)](LICENSE)
 [![CI](https://github.com/mnbro/listmonk-mcp-bridge/actions/workflows/ci.yml/badge.svg)](https://github.com/mnbro/listmonk-mcp-bridge/actions/workflows/ci.yml)
 [![Docs](https://github.com/mnbro/listmonk-mcp-bridge/actions/workflows/docs.yml/badge.svg)](https://github.com/mnbro/listmonk-mcp-bridge/actions/workflows/docs.yml)
 [![Ruff](https://img.shields.io/badge/lint-ruff-46a2f1)](https://docs.astral.sh/ruff/)
