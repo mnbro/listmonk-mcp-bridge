@@ -2,67 +2,33 @@ site_name: Listmonk MCP Bridge
 site_description: MCP server for Listmonk newsletter management
 site_author: mnbro
 site_url: https://mnbro.github.io/listmonk-mcp-bridge/
-
-repo_name: mnbro/listmonk-mcp-bridge
 repo_url: https://github.com/mnbro/listmonk-mcp-bridge
 
 theme:
   name: material
-  palette:
-    - scheme: default
-      primary: deep purple
-      accent: purple
-      toggle:
-        icon: material/brightness-7
-        name: Switch to dark mode
-    - scheme: slate
-      primary: deep purple
-      accent: purple
-      toggle:
-        icon: material/brightness-4
-        name: Switch to light mode
   features:
-    - navigation.tabs
     - navigation.sections
-    - navigation.expand
-    - navigation.path
-    - navigation.top
-    - search.highlight
-    - search.share
-    - toc.follow
+    - navigation.instant
     - content.code.copy
 
 markdown_extensions:
-  - pymdownx.highlight:
-      anchor_linenums: true
-      line_spans: __span
-      pygments_lang_class: true
-  - pymdownx.inlinehilite
-  - pymdownx.snippets
-  - pymdownx.superfences
   - admonition
-  - pymdownx.details
-  - attr_list
-  - md_in_html
+  - tables
+  - toc:
+      permalink: true
 
 nav:
-  - Home: index.md
-  - Setup:
-    - Container Image: container.md
-    - Claude Desktop: claude-desktop.md
-    - VS Code: vscode.md
-    - Cline: cline.md
-    - Windsurf & Cursor: windsurf-cursor.md
-  - Reference:
-    - Listmonk Docker Setup: docker-setup.md
+  - Overview: index.md
+  - Container Image: container.md
+  - Claude Desktop: claude-desktop.md
+  - VS Code: vscode.md
+  - Cline: cline.md
+  - Windsurf & Cursor: windsurf-cursor.md
+  - Listmonk Docker Setup: docker-setup.md
 
 plugins:
   - search
   - git-revision-date-localized:
       enable_creation_date: true
 
-extra:
-  social:
-    - icon: fontawesome/brands/github
-      link: https://github.com/mnbro/listmonk-mcp-bridge
-  generator: false
+strict: true
