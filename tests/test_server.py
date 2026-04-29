@@ -73,9 +73,17 @@ async def test_reported_tool_schemas_include_documented_arguments() -> None:
     assert import_params["required"] == ["mode", "delim"]
     assert import_params["properties"]["mode"]["enum"] == ["subscribe", "blocklist"]
 
-    assert set(tools["batch_replace_in_campaign_body"]["properties"]) == {"campaign_id", "replacements"}
-    assert tools["batch_replace_in_campaign_body"]["required"] == ["campaign_id", "replacements"]
-    replacement_items = tools["batch_replace_in_campaign_body"]["properties"]["replacements"]["items"]
+    assert set(tools["batch_replace_in_campaign_body"]["properties"]) == {
+        "campaign_id",
+        "replacements",
+    }
+    assert tools["batch_replace_in_campaign_body"]["required"] == [
+        "campaign_id",
+        "replacements",
+    ]
+    replacement_items = tools["batch_replace_in_campaign_body"]["properties"][
+        "replacements"
+    ]["items"]
     assert replacement_items["required"] == ["search", "replace"]
     assert set(replacement_items["properties"]) == {"search", "replace"}
 
@@ -124,7 +132,9 @@ async def test_destructive_tools_are_annotated_and_require_confirmation() -> Non
     assert result["error"]["confirm_required"] is True
     assert result["error"]["context"] == {"campaign_id": 7}
 
-    result = await server.change_subscriber_status(subscriber_id=11, status="blocklisted")
+    result = await server.change_subscriber_status(
+        subscriber_id=11, status="blocklisted"
+    )
 
     assert result["success"] is False
     assert result["error"]["error_type"] == "ConfirmationRequired"
@@ -138,13 +148,29 @@ async def test_destructive_tools_are_annotated_and_require_confirmation() -> Non
         (server.reload_app, {}),
         (server.update_subscriber, {"subscriber_id": 1, "status": "blocklisted"}),
         (server.update_subscriber, {"subscriber_id": 1, "lists": [1]}),
-        (server.manage_subscriber_lists, {"action": "remove", "target_list_ids": [1], "subscriber_ids": [1]}),
-        (server.manage_subscriber_lists_by_query, {"query": "subscribers.status = 'enabled'", "action": "unsubscribe", "target_list_ids": [1]}),
+        (
+            server.manage_subscriber_lists,
+            {"action": "remove", "target_list_ids": [1], "subscriber_ids": [1]},
+        ),
+        (
+            server.manage_subscriber_lists_by_query,
+            {
+                "query": "subscribers.status = 'enabled'",
+                "action": "unsubscribe",
+                "target_list_ids": [1],
+            },
+        ),
         (server.delete_subscriber_bounces, {"subscriber_id": 1}),
         (server.blocklist_subscriber, {"subscriber_id": 1}),
         (server.blocklist_subscribers, {"subscriber_ids": [1]}),
-        (server.delete_subscribers_by_query, {"query": "subscribers.email LIKE '%@example.com'"}),
-        (server.blocklist_subscribers_by_query, {"query": "subscribers.status = 'disabled'"}),
+        (
+            server.delete_subscribers_by_query,
+            {"query": "subscribers.email LIKE '%@example.com'"},
+        ),
+        (
+            server.blocklist_subscribers_by_query,
+            {"query": "subscribers.status = 'disabled'"},
+        ),
         (server.remove_subscriber, {"subscriber_id": 1}),
         (server.remove_subscribers, {"subscriber_ids": [1]}),
         (server.delete_bounce, {"bounce_id": 1}),
@@ -157,11 +183,16 @@ async def test_destructive_tools_are_annotated_and_require_confirmation() -> Non
         (server.delete_template, {"template_id": 1}),
         (server.delete_media_file, {"media_id": 1}),
         (server.delete_gc_subscribers, {"type": "blocklisted"}),
-        (server.delete_campaign_analytics, {"type": "views", "before_date": "2026-01-01"}),
+        (
+            server.delete_campaign_analytics,
+            {"type": "views", "before_date": "2026-01-01"},
+        ),
         (server.delete_unconfirmed_subscriptions, {"before_date": "2026-01-01"}),
     ],
 )
-async def test_all_confirmation_guardrails_block_without_confirm(tool: Any, kwargs: dict[str, Any]) -> None:
+async def test_all_confirmation_guardrails_block_without_confirm(
+    tool: Any, kwargs: dict[str, Any]
+) -> None:
     result = await tool(**kwargs)
 
     assert result["success"] is False
@@ -170,7 +201,9 @@ async def test_all_confirmation_guardrails_block_without_confirm(tool: Any, kwar
 
 
 @pytest.mark.asyncio
-async def test_email_sending_tools_are_marked_side_effecting_and_require_confirmation() -> None:
+async def test_email_sending_tools_are_marked_side_effecting_and_require_confirmation() -> (
+    None
+):
     email_tools = {
         "send_subscriber_optin",
         "send_campaign",
@@ -202,10 +235,15 @@ async def test_email_sending_tools_are_marked_side_effecting_and_require_confirm
         (server.send_subscriber_optin, {"subscriber_id": 1}),
         (server.send_campaign, {"campaign_id": 1}),
         (server.test_campaign, {"campaign_id": 1, "subscribers": ["test@example.com"]}),
-        (server.send_transactional_email, {"template_id": 1, "subscriber_email": "test@example.com"}),
+        (
+            server.send_transactional_email,
+            {"template_id": 1, "subscriber_email": "test@example.com"},
+        ),
     ],
 )
-async def test_all_email_guardrails_block_without_confirm_send(tool: Any, kwargs: dict[str, Any]) -> None:
+async def test_all_email_guardrails_block_without_confirm_send(
+    tool: Any, kwargs: dict[str, Any]
+) -> None:
     result = await tool(**kwargs)
 
     assert result["success"] is False
@@ -223,7 +261,9 @@ async def test_all_email_guardrails_block_without_confirm_send(tool: Any, kwargs
         (server.get_subscriber_export, {"subscriber_id": 1}),
     ],
 )
-async def test_sensitive_read_guardrails_block_without_confirm_read(tool: Any, kwargs: dict[str, Any]) -> None:
+async def test_sensitive_read_guardrails_block_without_confirm_read(
+    tool: Any, kwargs: dict[str, Any]
+) -> None:
     result = await tool(**kwargs)
 
     assert result["success"] is False
@@ -286,8 +326,12 @@ async def test_bulk_query_operations_are_rate_limited_and_observable(
     server._bulk_query_events.clear()
 
     with caplog.at_level("INFO", logger="listmonk_mcp.operations"):
-        first = await server.delete_subscribers_by_query(query="subscribers.email LIKE '%@example.com'", confirm=True)
-        second = await server.delete_subscribers_by_query(query="subscribers.status = 'enabled'", confirm=True)
+        first = await server.delete_subscribers_by_query(
+            query="subscribers.email LIKE '%@example.com'", confirm=True
+        )
+        second = await server.delete_subscribers_by_query(
+            query="subscribers.status = 'enabled'", confirm=True
+        )
 
     assert first["success"] is True
     assert second["success"] is False
@@ -370,7 +414,9 @@ def test_collection_response() -> None:
 
 
 @pytest.mark.asyncio
-async def test_get_list_subscribers_tool_returns_subscribers(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_get_list_subscribers_tool_returns_subscribers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setattr(server, "get_client", lambda: FakeListmonkClient())
 
     result = await server.get_list_subscribers_tool(list_id=7, page=2, per_page=10)

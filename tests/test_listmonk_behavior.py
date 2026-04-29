@@ -482,14 +482,18 @@ async def test_campaign_preview_bulk_public_and_maintenance_paths() -> None:
     }
 
     await client.delete_gc_subscribers("blocklisted")
-    assert last_request(client)["endpoint"] == "/api/maintenance/subscribers/blocklisted"
+    assert (
+        last_request(client)["endpoint"] == "/api/maintenance/subscribers/blocklisted"
+    )
 
     await client.delete_campaign_analytics("views", "2026-01-01")
     assert last_request(client)["endpoint"] == "/api/maintenance/analytics/views"
     assert last_payload(client) == {"before_date": "2026-01-01"}
 
     await client.delete_unconfirmed_subscriptions("2026-01-01")
-    assert last_request(client)["endpoint"] == "/api/maintenance/subscriptions/unconfirmed"
+    assert (
+        last_request(client)["endpoint"] == "/api/maintenance/subscriptions/unconfirmed"
+    )
     assert last_payload(client) == {"before_date": "2026-01-01"}
 
 

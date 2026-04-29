@@ -20,6 +20,12 @@ Documentation: https://mnbro.github.io/listmonk-mcp-bridge/
 
 It includes runtime confirmations for destructive actions, real email sends and sensitive reads.
 
+## License
+
+This project is licensed under the [PolyForm Internal Use License 1.0.0](LICENSE).
+
+You may use and modify it for your own internal business operations, including commercial internal use. You may not redistribute it, resell it, sublicense it, or offer it as a productized service to third parties.
+
 ## Install
 
 Run directly with `uvx`:

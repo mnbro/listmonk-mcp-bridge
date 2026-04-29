@@ -2,8 +2,15 @@
 
 ## Unreleased
 
+- Rewrite the runtime implementation around a compact Listmonk API client and explicit MCP safety guardrails.
+- Change project licensing to PolyForm Internal Use License 1.0.0.
 - Remove optional Nix flake development infrastructure and CI checks.
 - Update GitHub Pages documentation deployment to support manual dispatch after Pages is enabled.
+
+## 0.2.0
+
+- Rewrite the runtime implementation around a compact Listmonk API client and explicit MCP safety guardrails.
+- Change project licensing to PolyForm Internal Use License 1.0.0.
 
 ## [0.1.13](https://github.com/mnbro/listmonk-mcp-bridge/compare/v0.1.12...v0.1.13) (2026-04-28)
 

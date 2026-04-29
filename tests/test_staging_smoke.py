@@ -22,7 +22,9 @@ def staging_config() -> Config:
 
 
 @pytest.mark.asyncio
-async def test_staging_update_settings_import_and_send_email_smoke(tmp_path: Path) -> None:
+async def test_staging_update_settings_import_and_send_email_smoke(
+    tmp_path: Path,
+) -> None:
     list_id = int(os.environ["LISTMONK_MCP_SMOKE_LIST_ID"])
     campaign_id = int(os.environ["LISTMONK_MCP_SMOKE_CAMPAIGN_ID"])
     recipient = os.environ["LISTMONK_MCP_SMOKE_EMAIL"]

@@ -22,7 +22,7 @@ Typical use cases include:
 ## Features
 
 - Broad Listmonk API coverage for subscriber, list, campaign, template and media workflows.
-- 81 MCP tools covering all 72 Listmonk Swagger operations plus focused convenience workflows.
+- MCP tools for the Listmonk operations most useful to AI assistants and internal automation.
 - MCP resources for structured access to Listmonk data.
 - Async HTTP operations for reliable Listmonk API communication.
 - Pydantic validation for safer input and output handling.
@@ -206,6 +206,12 @@ Query-driven bulk operations are rate limited per server process. Configure the 
 - Rotate API tokens periodically.
 - Test campaign-related workflows against a staging Listmonk instance first.
 
+## License
+
+This project is licensed under the [PolyForm Internal Use License 1.0.0](https://polyformproject.org/licenses/internal-use/1.0.0).
+
+You may use and modify it for your own internal business operations, including commercial internal use. You may not redistribute it, resell it, sublicense it, or offer it as a productized service to third parties.
+
 ## Development
 
 ```bash
@@ -217,8 +223,6 @@ uv run mkdocs build --strict
 uv build
 ```
 
-## Attribution
+## Acknowledgements
 
-This repository began as an initial fork of [`rhnvrm/listmonk-mcp`](https://github.com/rhnvrm/listmonk-mcp).
-
-It has since evolved into `listmonk-mcp-bridge`, a packaged and operationally documented MCP server for Listmonk.
+Earlier project history referenced `rhnvrm/listmonk-mcp`. The current implementation was rewritten around the public Listmonk API surface and this project's own safety and operational requirements.

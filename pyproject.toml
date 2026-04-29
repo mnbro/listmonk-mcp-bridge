@@ -4,16 +4,16 @@ build-backend = "hatchling.build"
 
 [project]
 name = "listmonk-mcp-bridge"
-version = "0.1.13"
+version = "0.2.0"
 description = "Production-ready MCP server for Listmonk newsletter and mailing list management"
 readme = "README.md"
-license = "MIT"
+license = { file = "LICENSE" }
 requires-python = ">=3.11"
 keywords = ["listmonk", "mcp", "newsletter", "email-marketing", "model-context-protocol"]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
+    "License :: Other/Proprietary License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -52,7 +52,7 @@ listmonk-mcp = "listmonk_mcp.server:main"
 Homepage = "https://github.com/mnbro/listmonk-mcp-bridge"
 Repository = "https://github.com/mnbro/listmonk-mcp-bridge"
 Issues = "https://github.com/mnbro/listmonk-mcp-bridge/issues"
-Documentation = "https://github.com/mnbro/listmonk-mcp-bridge/master/docs"
+Documentation = "https://mnbro.github.io/listmonk-mcp-bridge/"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/listmonk_mcp"]
