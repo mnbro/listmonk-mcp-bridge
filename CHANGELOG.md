@@ -4,6 +4,10 @@
 
 - No unreleased changes.
 
+## 0.4.1
+
+- Publish English README examples to PyPI.
+
 ## 0.4.0
 
 - Add generic LLM-friendly Listmonk helper tools for profile upsert, subscriber context, audience summaries, personalization validation, campaign risk checks, safe sends/schedules, analytics summaries and exports.
