@@ -135,6 +135,14 @@ async def test_reported_tool_schemas_include_documented_arguments() -> None:
     for data_schema in (safe_transactional_data_schema, transactional_data_schema):
         assert data_schema["anyOf"][0]["type"] == "object"
         assert data_schema["anyOf"][0]["additionalProperties"] is True
+        assert set(data_schema["anyOf"][0]["properties"]) == {
+            "name",
+            "customMessage",
+        }
+        assert (
+            data_schema["anyOf"][0]["properties"]["name"]["description"]
+            == "Optional example personalization field."
+        )
         assert data_schema["anyOf"][1]["type"] == "null"
     assert (
         tools["safe_send_campaign"]["properties"]["approval"]["anyOf"][0]["type"]

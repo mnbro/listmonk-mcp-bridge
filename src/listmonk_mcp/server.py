@@ -142,6 +142,16 @@ TransactionalDataPayload = Annotated[
     WithJsonSchema(
         {
             "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "Optional example personalization field.",
+                },
+                "customMessage": {
+                    "type": "string",
+                    "description": "Optional example personalization field.",
+                },
+            },
             "additionalProperties": True,
         }
     ),

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.8
+
+- Add generic example properties to transactional email `data` schemas while keeping free-form JSON support.
+
 ## 0.4.7
 
 - Expose transactional email `data` schemas using a non-null object alias with optional parameters for connector compatibility.
