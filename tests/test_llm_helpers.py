@@ -13,8 +13,8 @@ class HelperClient:
         self.subscribers: dict[int, dict[str, Any]] = {
             1: {
                 "id": 1,
-                "email": "ana@example.com",
-                "name": "Ana",
+                "email": "jane@example.com",
+                "name": "Jane",
                 "status": "enabled",
                 "attribs": {"birthday": "1990-05-10", "customer_type": "vip"},
                 "tags": ["existing"],
@@ -49,8 +49,8 @@ class HelperClient:
             10: {
                 "id": 10,
                 "name": "April Newsletter",
-                "subject": "Salut {{name}}",
-                "body": "Oferta pentru {{customer_type}}",
+                "subject": "Hello {{name}}",
+                "body": "Update for {{customer_type}}",
                 "status": "draft",
                 "lists": [1],
                 "content_type": "html",
@@ -67,7 +67,7 @@ class HelperClient:
 
     async def get_subscribers(self, **kwargs: Any) -> dict[str, Any]:
         query = str(kwargs.get("query") or "")
-        if "ana@example.com" in query:
+        if "jane@example.com" in query:
             return {"data": {"results": [self.subscribers[1]], "total": 1}}
         if "subscribers.email" in query:
             return {"data": {"results": [], "total": 0}}
@@ -130,7 +130,7 @@ class HelperClient:
         del campaign_id, from_date, to_date
         if type == "views":
             return {
-                "data": [{"id": "v1", "subscriber_id": 1, "email": "ana@example.com"}]
+                "data": [{"id": "v1", "subscriber_id": 1, "email": "jane@example.com"}]
             }
         if type == "clicks":
             return {
@@ -203,13 +203,13 @@ async def test_upsert_subscriber_profiles_creates_and_updates_with_merge(
             {
                 "email": "new@example.com",
                 "name": "New",
-                "attributes": {"city": "Bucharest"},
+                "attributes": {"city": "New York"},
                 "tags": ["fresh"],
                 "listIds": [1],
             },
             {
-                "email": "ana@example.com",
-                "attributes": {"city": "Cluj"},
+                "email": "jane@example.com",
+                "attributes": {"city": "London"},
                 "tags": ["vip"],
                 "listIds": [2],
             },
@@ -219,10 +219,10 @@ async def test_upsert_subscriber_profiles_creates_and_updates_with_merge(
 
     assert result["created"] == 1
     assert result["updated"] == 1
-    assert helper_client.created[0]["attribs"]["city"] == "Bucharest"
+    assert helper_client.created[0]["attribs"]["city"] == "New York"
     update = helper_client.updated[0]
     assert update["attribs"]["birthday"] == "1990-05-10"
-    assert update["attribs"]["city"] == "Cluj"
+    assert update["attribs"]["city"] == "London"
     assert set(update["attribs"]["tags"]) == {"existing", "vip"}
     assert update["lists"] == [1, 2]
 
@@ -231,7 +231,7 @@ async def test_upsert_subscriber_profiles_creates_and_updates_with_merge(
 async def test_get_subscriber_context_by_email_and_missing(
     helper_client: HelperClient,
 ) -> None:
-    found = await server.get_subscriber_context(email="ana@example.com")
+    found = await server.get_subscriber_context(email="jane@example.com")
     missing = await server.get_subscriber_context(email="missing@example.com")
 
     assert found["success"] is True
@@ -278,8 +278,8 @@ async def test_validate_message_personalization_detects_missing_and_low_coverage
     helper_client: HelperClient,
 ) -> None:
     result = await server.validate_message_personalization(
-        subject="Salut {{name}}",
-        body="Ai {{birthday}} si {{missing_field}}",
+        subject="Hello {{name}}",
+        body="You have {{birthday}} and {{missing_field}}",
         listIds=[1],
     )
 
@@ -350,17 +350,17 @@ async def test_safe_send_transactional_email_idempotency(
     helper_client: HelperClient,
 ) -> None:
     blocked = await server.safe_send_transactional_email(
-        templateId=1, recipientEmail="ana@example.com"
+        templateId=1, recipientEmail="jane@example.com"
     )
     first = await server.safe_send_transactional_email(
         templateId=1,
-        recipientEmail="ana@example.com",
+        recipientEmail="jane@example.com",
         confirmSend=True,
         idempotencyKey="event-1",
     )
     second = await server.safe_send_transactional_email(
         templateId=1,
-        recipientEmail="ana@example.com",
+        recipientEmail="jane@example.com",
         confirmSend=True,
         idempotencyKey="event-1",
     )
@@ -411,7 +411,7 @@ async def test_export_subscriber_communication_summary(
     helper_client: HelperClient,
 ) -> None:
     result = await server.export_subscriber_communication_summary(
-        email="ana@example.com"
+        email="jane@example.com"
     )
 
     assert result["success"] is True

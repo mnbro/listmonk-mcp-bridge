@@ -59,8 +59,8 @@ Example profile sync dry run:
     {
       "externalId": "abc-123",
       "source": "external-system",
-      "email": "ana@example.com",
-      "name": "Ana Popescu",
+      "email": "jane@example.com",
+      "name": "Jane Doe",
       "attributes": {
         "birthday": "1990-05-10",
         "customer_type": "vip"
@@ -78,7 +78,7 @@ Example personalization and send checks:
 
 ```json
 {
-  "email": "ana@example.com"
+  "email": "jane@example.com"
 }
 ```
 
@@ -91,8 +91,8 @@ Example personalization and send checks:
 
 ```json
 {
-  "subject": "Salut {{name}}",
-  "body": "Avem o ofertă pentru {{customer_type}}.",
+  "subject": "Hello {{name}}",
+  "body": "We have an update for {{customer_type}} subscribers.",
   "listIds": [1],
   "sampleSubscriberIds": [123, 456]
 }
@@ -123,10 +123,10 @@ Example personalization and send checks:
 ```json
 {
   "templateId": 10,
-  "recipientEmail": "ana@example.com",
-  "subject": "Mesaj pentru tine",
+  "recipientEmail": "jane@example.com",
+  "subject": "A message for you",
   "data": {
-    "name": "Ana"
+    "name": "Jane"
   },
   "contentType": "html",
   "confirmSend": true,
