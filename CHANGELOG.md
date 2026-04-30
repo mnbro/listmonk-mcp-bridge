@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.10
+
+- Use aggregate campaign fields as a `campaign_performance_summary` fallback when detailed analytics endpoints return 404.
+
 ## 0.4.9
 
 - Extract campaign list IDs from both integer and object-shaped Listmonk campaign payloads.

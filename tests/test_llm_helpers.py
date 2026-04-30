@@ -6,6 +6,7 @@ from typing import Any
 import pytest
 
 from listmonk_mcp import server
+from listmonk_mcp.client import ListmonkAPIError
 
 
 class HelperClient:
@@ -62,6 +63,19 @@ class HelperClient:
                 "body": "",
                 "status": "sent",
                 "lists": [],
+            },
+            12: {
+                "id": 12,
+                "name": "Aggregate Stats",
+                "subject": "Stats",
+                "body": "Stats",
+                "status": "sent",
+                "lists": [{"id": 1, "name": "Main"}],
+                "views": 7,
+                "clicks": 3,
+                "bounces": 1,
+                "sent": 4,
+                "to_send": 0,
             },
         }
 
@@ -137,6 +151,8 @@ class HelperClient:
         from_date: str | None = None,
         to_date: str | None = None,
     ) -> dict[str, Any]:
+        if campaign_id == 12:
+            raise ListmonkAPIError("not found", status_code=404)
         del campaign_id, from_date, to_date
         if type == "views":
             return {
@@ -453,6 +469,23 @@ async def test_campaign_performance_summary_and_events(
     assert events["events"][0]["eventType"] == "email_viewed"
     assert events["supported"] is False
     assert events["unsupported"][0]["eventType"] == "email_bounced"
+
+
+@pytest.mark.asyncio
+async def test_campaign_performance_summary_uses_campaign_field_fallback(
+    helper_client: HelperClient,
+) -> None:
+    summary = await server.campaign_performance_summary(campaignId=12)
+
+    assert summary["views"] == 7
+    assert summary["clicks"] == 3
+    assert summary["bounces"] == 1
+    assert summary["sent"] == 4
+    assert summary["toSend"] == 0
+    assert summary["analyticsSource"] == "campaign_fields"
+    assert summary["warnings"] == [
+        "Detailed analytics endpoint unavailable; using aggregate campaign fields."
+    ]
 
 
 @pytest.mark.asyncio

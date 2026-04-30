@@ -23,6 +23,7 @@ from mcp.types import ToolAnnotations
 from pydantic import Field, WithJsonSchema
 
 from .client import (
+    ListmonkAPIError,
     ListmonkClient,
     compact_payload,
     extract_campaign_list_ids,
@@ -414,6 +415,22 @@ def _email_recipient_blockers(recipients: list[str]) -> list[str]:
         if not isinstance(recipient, str) or not _email_pattern.fullmatch(recipient):
             blockers.append(f"Invalid email recipient: {recipient}")
     return blockers
+
+
+def _int_field(payload: dict[str, Any], field: str) -> int:
+    value = payload.get(field, 0)
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        return int(value)
+    if isinstance(value, str):
+        try:
+            return int(value)
+        except ValueError:
+            return 0
+    return 0
 
 
 async def _lookup_subscriber_by_email(email: str) -> dict[str, Any] | None:
@@ -2066,6 +2083,9 @@ async def campaign_performance_summary(
     campaign = _one_from_response(await get_client().get_campaign(campaignId)) or {}
     metrics: dict[str, Any] = {}
     unavailable: list[str] = []
+    warnings: list[str] = []
+    analytics_source = "analytics"
+    analytics_not_found = False
     for metric in ("views", "clicks", "bounces", "unsubscribes"):
         try:
             metrics[metric] = _normalize_listmonk_response(
@@ -2073,22 +2093,46 @@ async def campaign_performance_summary(
                     campaignId, metric, fromDate, toDate
                 )
             )
+        except ListmonkAPIError as exc:
+            unavailable.append(metric)
+            if exc.status_code == 404:
+                analytics_not_found = True
         except Exception:  # noqa: BLE001
             unavailable.append(metric)
-    views = (
-        len(metrics.get("views", []))
-        if isinstance(metrics.get("views"), list)
-        else int(metrics.get("views", {}).get("total", 0))
-        if isinstance(metrics.get("views"), dict)
-        else 0
-    )
-    clicks = (
-        len(metrics.get("clicks", []))
-        if isinstance(metrics.get("clicks"), list)
-        else int(metrics.get("clicks", {}).get("total", 0))
-        if isinstance(metrics.get("clicks"), dict)
-        else 0
-    )
+    if analytics_not_found:
+        views = _int_field(campaign, "views")
+        clicks = _int_field(campaign, "clicks")
+        bounces = _int_field(campaign, "bounces")
+        sent = _int_field(campaign, "sent")
+        to_send = _int_field(campaign, "to_send")
+        analytics_source = "campaign_fields"
+        warnings.append(
+            "Detailed analytics endpoint unavailable; using aggregate campaign fields."
+        )
+    else:
+        views = (
+            len(metrics.get("views", []))
+            if isinstance(metrics.get("views"), list)
+            else int(metrics.get("views", {}).get("total", 0))
+            if isinstance(metrics.get("views"), dict)
+            else 0
+        )
+        clicks = (
+            len(metrics.get("clicks", []))
+            if isinstance(metrics.get("clicks"), list)
+            else int(metrics.get("clicks", {}).get("total", 0))
+            if isinstance(metrics.get("clicks"), dict)
+            else 0
+        )
+        bounces = (
+            len(metrics.get("bounces", []))
+            if isinstance(metrics.get("bounces"), list)
+            else int(metrics.get("bounces", {}).get("total", 0))
+            if isinstance(metrics.get("bounces"), dict)
+            else 0
+        )
+        sent = _int_field(campaign, "sent")
+        to_send = _int_field(campaign, "to_send")
     recommendations = []
     if clicks and views and clicks / max(views, 1) >= 0.1:
         recommendations.append("Click rate is strong compared to views")
@@ -2096,6 +2140,7 @@ async def campaign_performance_summary(
         recommendations.append(
             "Some metrics are unavailable from the Listmonk API response"
         )
+    unsubscribes = metrics.get("unsubscribes", 0)
     return {
         "success": True,
         "campaignId": campaignId,
@@ -2103,12 +2148,16 @@ async def campaign_performance_summary(
         "subject": campaign.get("subject"),
         "views": views,
         "clicks": clicks,
-        "bounces": metrics.get("bounces", 0),
-        "unsubscribes": metrics.get("unsubscribes", 0),
+        "bounces": bounces,
+        "sent": sent,
+        "toSend": to_send,
+        "unsubscribes": unsubscribes,
         "topLinks": [],
         "engagementRate": round(clicks / max(views, 1), 4),
         "recommendations": recommendations,
         "unavailableMetrics": unavailable,
+        "analyticsSource": analytics_source,
+        "warnings": warnings,
     }
 
 
