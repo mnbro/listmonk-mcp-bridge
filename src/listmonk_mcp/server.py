@@ -92,6 +92,55 @@ SmtpSettingsPayload = Annotated[
         }
     ),
 ]
+SubscriberProfilesPayload = Annotated[
+    list[dict[str, Any]],
+    Field(description="Subscriber profiles to create or update by email."),
+    WithJsonSchema(
+        {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["email"],
+                "properties": {
+                    "externalId": {"type": "string"},
+                    "source": {"type": "string"},
+                    "email": {"type": "string", "format": "email"},
+                    "name": {"type": "string"},
+                    "attributes": {"type": "object", "additionalProperties": True},
+                    "tags": {"type": "array", "items": {"type": "string"}},
+                    "listIds": {"type": "array", "items": {"type": "integer"}},
+                    "status": {
+                        "type": "string",
+                        "enum": ["enabled", "disabled", "blocklisted"],
+                    },
+                },
+                "additionalProperties": True,
+            },
+        }
+    ),
+]
+ApprovalPayload = Annotated[
+    dict[str, Any],
+    Field(description="External approval evidence supplied by an orchestrator."),
+    WithJsonSchema(
+        {
+            "type": "object",
+            "properties": {
+                "required": {"type": "boolean"},
+                "status": {"type": "string"},
+                "approvalId": {"type": "string"},
+            },
+            "additionalProperties": True,
+        }
+    ),
+]
+TransactionalDataPayload = Annotated[
+    dict[str, Any],
+    Field(
+        description="Template data object for Listmonk transactional email rendering."
+    ),
+    WithJsonSchema({"type": "object", "additionalProperties": True}),
+]
 ImportSubscriberParamsPayload = Annotated[
     dict[str, Any],
     Field(description="Subscriber import parameters"),
@@ -349,13 +398,29 @@ async def _collect_audience_subscribers(
 ) -> list[dict[str, Any]]:
     subscribers_by_id: dict[str, dict[str, Any]] = {}
     for list_id in list_ids:
-        response = await get_client().get_list_subscribers(
+        response = await _get_subscribers_for_list(
             list_id, page=1, per_page=sample_size
         )
         for subscriber in _results_from_response(response):
             key = str(subscriber.get("id") or subscriber.get("email") or uuid4().hex)
             subscribers_by_id[key] = subscriber
     return list(subscribers_by_id.values())
+
+
+async def _get_subscribers_for_list(
+    list_id: int, page: int = 1, per_page: int = 20
+) -> dict[str, Any]:
+    client = get_client()
+    if hasattr(client, "get_subscribers"):
+        try:
+            return await client.get_subscribers(
+                page=page,
+                per_page=per_page,
+                list_ids=[list_id],
+            )
+        except TypeError:
+            pass
+    return await client.get_list_subscribers(list_id, page, per_page)
 
 
 def _attribute_coverage(
@@ -971,7 +1036,7 @@ async def stop_import_subscribers(confirm: bool = False) -> dict[str, Any]:
 async def get_list_subscribers_tool(
     list_id: int, page: int = 1, per_page: int = 20
 ) -> dict[str, Any]:
-    response = await get_client().get_list_subscribers(list_id, page, per_page)
+    response = await _get_subscribers_for_list(list_id, page, per_page)
     items, total = _data_items(response)
     return {
         "success": True,
@@ -1405,7 +1470,7 @@ async def delete_unconfirmed_subscriptions(
 
 @mcp.tool(annotations=MUTATING)
 async def upsert_subscriber_profiles(
-    profiles: list[dict[str, Any]], dryRun: bool = True
+    profiles: SubscriberProfilesPayload, dryRun: bool = True
 ) -> dict[str, Any]:
     created = 0
     updated = 0
@@ -1733,7 +1798,7 @@ async def campaign_risk_check(
 async def safe_send_campaign(
     campaignId: int,
     confirmSend: bool = False,
-    approval: dict[str, Any] | None = None,
+    approval: ApprovalPayload | None = None,
     requireTestSend: bool = True,
     testRecipients: list[str] | None = None,
 ) -> dict[str, Any]:
@@ -1801,7 +1866,7 @@ async def safe_send_transactional_email(
     recipientEmail: str | None = None,
     recipientSubscriberId: int | None = None,
     subject: str | None = None,
-    data: dict[str, Any] | None = None,
+    data: TransactionalDataPayload | None = None,
     contentType: str = "html",
     confirmSend: bool = False,
     idempotencyKey: str | None = None,
@@ -2097,7 +2162,7 @@ async def safe_schedule_campaign(
     campaignId: int,
     sendAt: str,
     confirmSchedule: bool = False,
-    approval: dict[str, Any] | None = None,
+    approval: ApprovalPayload | None = None,
 ) -> dict[str, Any]:
     if not confirmSchedule:
         return {

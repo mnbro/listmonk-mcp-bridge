@@ -1,8 +1,10 @@
 # Changelog
 
-## Unreleased
+## 0.4.2
 
-- No unreleased changes.
+- Fix Listmonk subscriber list audience helpers to use the general subscriber filter API for valid list IDs.
+- Tighten MCP input schemas for LLM helper tools that accept profile arrays and approval/data objects.
+- Align runtime package version metadata.
 
 ## 0.4.1
 

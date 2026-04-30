@@ -8,6 +8,31 @@ from listmonk_mcp.exceptions import safe_execute_async
 
 
 class FakeListmonkClient:
+    def __init__(self) -> None:
+        self.get_subscribers_calls: list[dict[str, Any]] = []
+
+    async def get_subscribers(self, **kwargs: Any) -> dict[str, Any]:
+        self.get_subscribers_calls.append(kwargs)
+        if kwargs.get("list_ids") == [1]:
+            return {
+                "data": {
+                    "results": [
+                        {
+                            "id": 1,
+                            "email": "ada@example.com",
+                            "name": "Ada Lovelace",
+                            "status": "enabled",
+                        }
+                    ],
+                    "total": 1,
+                }
+            }
+        return await self.get_list_subscribers(
+            int((kwargs.get("list_ids") or [7])[0]),
+            kwargs.get("page", 1),
+            kwargs.get("per_page", 20),
+        )
+
     async def get_list_subscribers(
         self,
         list_id: int,
@@ -86,6 +111,25 @@ async def test_reported_tool_schemas_include_documented_arguments() -> None:
     ]["items"]
     assert replacement_items["required"] == ["search", "replace"]
     assert set(replacement_items["properties"]) == {"search", "replace"}
+
+    profile_items = tools["upsert_subscriber_profiles"]["properties"]["profiles"][
+        "items"
+    ]
+    assert profile_items["required"] == ["email"]
+    assert profile_items["properties"]["attributes"]["type"] == "object"
+    assert profile_items["properties"]["listIds"]["items"]["type"] == "integer"
+    assert (
+        tools["safe_send_transactional_email"]["properties"]["data"]["anyOf"][0]["type"]
+        == "object"
+    )
+    assert (
+        tools["safe_send_campaign"]["properties"]["approval"]["anyOf"][0]["type"]
+        == "object"
+    )
+    assert (
+        tools["safe_schedule_campaign"]["properties"]["approval"]["anyOf"][0]["type"]
+        == "object"
+    )
 
 
 @pytest.mark.asyncio
@@ -417,7 +461,8 @@ def test_collection_response() -> None:
 async def test_get_list_subscribers_tool_returns_subscribers(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(server, "get_client", lambda: FakeListmonkClient())
+    client = FakeListmonkClient()
+    monkeypatch.setattr(server, "get_client", lambda: client)
 
     result = await server.get_list_subscribers_tool(list_id=7, page=2, per_page=10)
 
@@ -443,6 +488,22 @@ async def test_get_list_subscribers_tool_returns_subscribers(
             },
         ],
     }
+    assert client.get_subscribers_calls[0]["list_ids"] == [7]
+
+
+@pytest.mark.asyncio
+async def test_get_list_subscribers_tool_uses_general_subscriber_filter_for_valid_list(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client = FakeListmonkClient()
+    monkeypatch.setattr(server, "get_client", lambda: client)
+
+    result = await server.get_list_subscribers_tool(list_id=1, page=1, per_page=20)
+
+    assert result["success"] is True
+    assert result["total"] == 1
+    assert result["subscribers"][0]["email"] == "ada@example.com"
+    assert client.get_subscribers_calls[0]["list_ids"] == [1]
 
 
 @pytest.mark.asyncio

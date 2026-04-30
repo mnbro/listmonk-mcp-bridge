@@ -71,7 +71,17 @@ class HelperClient:
             return {"data": {"results": [self.subscribers[1]], "total": 1}}
         if "subscribers.email" in query:
             return {"data": {"results": [], "total": 0}}
-        return {"data": {"results": list(self.subscribers.values()), "total": 3}}
+        list_ids = set(kwargs.get("list_ids") or [])
+        results = list(self.subscribers.values())
+        if list_ids:
+            results = [
+                subscriber
+                for subscriber in results
+                if any(
+                    item.get("id") in list_ids for item in subscriber.get("lists", [])
+                )
+            ]
+        return {"data": {"results": results, "total": len(results)}}
 
     async def get_subscriber_by_email(self, email: str) -> dict[str, Any]:
         for subscriber in self.subscribers.values():

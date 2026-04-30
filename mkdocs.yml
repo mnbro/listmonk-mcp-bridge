@@ -3,6 +3,7 @@ site_description: MCP server for Listmonk newsletter management
 site_author: mnbro
 site_url: https://mnbro.github.io/listmonk-mcp-bridge/
 repo_url: https://github.com/mnbro/listmonk-mcp-bridge
+repo_name: v0.4.2
 
 theme:
   name: material
