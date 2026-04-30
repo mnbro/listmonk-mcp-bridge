@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.3
+
+- Improve transactional email data schemas for template variable objects.
+- Detect common Listmonk Go template variables in personalization validation.
+- Document the `subscribers:sql_query` permission needed for profile upsert email lookup.
+
 ## 0.4.2
 
 - Fix Listmonk subscriber list audience helpers to use the general subscriber filter API for valid list IDs.

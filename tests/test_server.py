@@ -123,6 +123,10 @@ async def test_reported_tool_schemas_include_documented_arguments() -> None:
         == "object"
     )
     assert (
+        tools["send_transactional_email"]["properties"]["data"]["anyOf"][0]["type"]
+        == "object"
+    )
+    assert (
         tools["safe_send_campaign"]["properties"]["approval"]["anyOf"][0]["type"]
         == "object"
     )
@@ -358,6 +362,24 @@ async def test_audit_logs_redact_pii_and_raw_queries(
     assert "subscribers.email" not in caplog.text
     assert '"sha256"' in caplog.text
     assert "<redacted-email>" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_send_transactional_email_accepts_data_object(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(server, "get_client", lambda: FakeSideEffectClient())
+
+    result = await server.send_transactional_email(
+        template_id=1,
+        subscriber_email="ada@example.com",
+        subject="Hello Ada",
+        data={"name": "Ada", "nested": {"value": 1}},
+        confirm_send=True,
+    )
+
+    assert result["success"] is True
+    assert result["data"]["data"] == {"name": "Ada", "nested": {"value": 1}}
 
 
 @pytest.mark.asyncio

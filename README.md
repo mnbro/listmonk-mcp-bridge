@@ -74,6 +74,11 @@ Example profile sync dry run:
 }
 ```
 
+`upsert_subscriber_profiles` looks up existing subscribers by email before planning or
+applying changes. In the current implementation that lookup uses Listmonk's subscriber
+SQL query capability, so the MCP API key needs the `subscribers:sql_query` permission.
+Without it, dry runs and upserts can return a Listmonk permission error.
+
 Example personalization and send checks:
 
 ```json
@@ -124,9 +129,10 @@ Example personalization and send checks:
 {
   "templateId": 10,
   "recipientEmail": "jane@example.com",
-  "subject": "A message for you",
+  "subject": "A message for Jane",
   "data": {
-    "name": "Jane"
+    "name": "Jane",
+    "customMessage": "Happy birthday"
   },
   "contentType": "html",
   "confirmSend": true,

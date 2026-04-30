@@ -280,6 +280,7 @@ async def test_personalization_fields_report_marks_safe_and_risky(
     result = await server.personalization_fields_report(listIds=[1], sampleSize=10)
 
     assert "customer_type" in result["recommendedSafeFields"]
+    assert "name" in result["availableFields"]
     assert "birthday" in result["riskyFields"]
 
 
@@ -295,6 +296,27 @@ async def test_validate_message_personalization_detects_missing_and_low_coverage
 
     assert "missing_field" in result["missingVariables"]
     assert "birthday" in result["lowCoverageVariables"]
+    assert result["riskLevel"] == "high"
+
+
+@pytest.mark.asyncio
+async def test_validate_message_personalization_detects_listmonk_go_templates(
+    helper_client: HelperClient,
+) -> None:
+    result = await server.validate_message_personalization(
+        subject="Hello {{ .Subscriber.Name }}",
+        body=(
+            "Your birthday is {{ .Subscriber.Attribs.birthday }}. "
+            "Campaign {{ .Campaign.Name }} / {{ .Campaign.Subject }}"
+        ),
+        listIds=[2],
+    )
+
+    assert result["usedVariables"] == ["birthday", "name"]
+    assert result["missingVariables"] == ["birthday"]
+    assert ".Campaign.Name" not in result["missingVariables"]
+    assert result["coverageByVariable"]["name"] == 1
+    assert result["coverageByVariable"]["birthday"] == 0
     assert result["riskLevel"] == "high"
 
 
@@ -360,11 +382,14 @@ async def test_safe_send_transactional_email_idempotency(
     helper_client: HelperClient,
 ) -> None:
     blocked = await server.safe_send_transactional_email(
-        templateId=1, recipientEmail="jane@example.com"
+        templateId=1,
+        recipientEmail="jane@example.com",
+        data={"name": "Jane", "nested": {"value": 1}},
     )
     first = await server.safe_send_transactional_email(
         templateId=1,
         recipientEmail="jane@example.com",
+        data={"name": "Jane", "nested": {"value": 1}},
         confirmSend=True,
         idempotencyKey="event-1",
     )
@@ -379,6 +404,7 @@ async def test_safe_send_transactional_email_idempotency(
     assert first["sent"] is True
     assert second["skipped"] is True
     assert len(helper_client.tx_sends) == 1
+    assert helper_client.tx_sends[0]["data"] == {"name": "Jane", "nested": {"value": 1}}
 
 
 @pytest.mark.asyncio
@@ -427,3 +453,4 @@ async def test_export_subscriber_communication_summary(
     assert result["success"] is True
     assert "Communication Summary" in result["markdown"]
     assert "engagement" in result
+    assert result["subscriber"]["email"] == "jane@example.com"

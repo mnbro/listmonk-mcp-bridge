@@ -29,6 +29,11 @@ These tools compose existing Listmonk wrappers into safer primitives for LLM age
 | `export_campaign_postmortem_markdown` | read-only | Generic postmortem Markdown based on `campaign_performance_summary`. |
 | `export_subscriber_communication_summary` | read-only | Generic subscriber communication summary with structured data and Markdown. |
 
+`upsert_subscriber_profiles` performs an email lookup before creating or updating
+subscribers. In the current implementation this uses Listmonk's subscriber SQL query
+capability, so the MCP API key needs `subscribers:sql_query`. Without that permission,
+dry runs and upserts can fail with a Listmonk permission error.
+
 ## Health, Settings and Admin
 
 | Tool | Class | Notes |

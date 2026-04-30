@@ -187,7 +187,7 @@ async def lifespan(app: Any) -> Any:
 mcp = FastMCP(name="listmonk-mcp-bridge", lifespan=lifespan)
 _client: ListmonkClient | None = None
 _bulk_query_events: deque[float] = deque()
-_template_variable_pattern = re.compile(r"{{\s*([a-zA-Z_][a-zA-Z0-9_.-]*)\s*}}")
+_template_variable_pattern = re.compile(r"{{\s*([^{}]+?)\s*}}")
 _data_dir = Path("data")
 _sync_log_path = _data_dir / "sync_logs.json"
 _send_audit_log_path = _data_dir / "send_audit_log.json"
@@ -440,6 +440,8 @@ def _attribute_coverage(
             value = (
                 subscriber.get("name")
                 if field == "name"
+                else subscriber.get("email")
+                if field == "email"
                 else _subscriber_attribs(subscriber).get(field)
             )
             if value not in (None, ""):
@@ -452,10 +454,30 @@ def _extract_template_variables(*texts: str | None) -> list[str]:
     variables: set[str] = set()
     for text in texts:
         if text:
-            variables.update(
-                match.group(1) for match in _template_variable_pattern.finditer(text)
-            )
+            for match in _template_variable_pattern.finditer(text):
+                normalized = _normalize_template_variable(match.group(1))
+                if normalized:
+                    variables.add(normalized)
     return sorted(variables)
+
+
+def _normalize_template_variable(expression: str) -> str | None:
+    value = expression.strip()
+    if not value:
+        return None
+    if value.startswith(".Campaign."):
+        return None
+    if value == ".Subscriber.Name":
+        return "name"
+    if value == ".Subscriber.Email":
+        return "email"
+    attrib_prefix = ".Subscriber.Attribs."
+    if value.startswith(attrib_prefix):
+        field = value.removeprefix(attrib_prefix).strip()
+        return field or None
+    if re.fullmatch(r"[a-zA-Z_][a-zA-Z0-9_.-]*", value):
+        return value
+    return None
 
 
 def _risk_level(warnings: list[str], blockers: list[str]) -> str:
@@ -1334,7 +1356,7 @@ async def send_transactional_email(
     subscriber_mode: str | None = None,
     from_email: str | None = None,
     subject: str | None = None,
-    data: dict[str, Any] | None = None,
+    data: TransactionalDataPayload | None = None,
     headers: list[dict[str, Any]] | None = None,
     messenger: str | None = None,
     content_type: str = "html",
@@ -1681,11 +1703,7 @@ async def personalization_fields_report(
     examples: dict[str, Any] = {}
     for field in sorted(coverage):
         for subscriber in subscribers:
-            value = (
-                subscriber.get("name")
-                if field == "name"
-                else _subscriber_attribs(subscriber).get(field)
-            )
+            value = _subscriber_field_value(subscriber, field)
             if value not in (None, ""):
                 examples[field] = "<redacted>" if "email" in field.lower() else value
                 break
@@ -1741,6 +1759,14 @@ async def validate_message_personalization(
         "blockers": blockers,
         "riskLevel": _risk_level(warnings, blockers),
     }
+
+
+def _subscriber_field_value(subscriber: dict[str, Any], field: str) -> Any:
+    if field == "name":
+        return subscriber.get("name")
+    if field == "email":
+        return subscriber.get("email")
+    return _subscriber_attribs(subscriber).get(field)
 
 
 async def _campaign_risk_check_data(
