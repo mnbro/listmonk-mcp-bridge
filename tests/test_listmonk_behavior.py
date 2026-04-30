@@ -384,6 +384,18 @@ async def test_subscriber_auxiliary_methods_use_swagger_paths() -> None:
 
 
 @pytest.mark.asyncio
+async def test_get_subscriber_by_email_escapes_query_literal() -> None:
+    client = RecordingClient()
+
+    await client.get_subscriber_by_email("o'hara@example.com")
+
+    assert last_request(client)["endpoint"] == "/api/subscribers"
+    assert last_request(client)["params"]["query"] == (
+        "subscribers.email = 'o''hara@example.com'"
+    )
+
+
+@pytest.mark.asyncio
 async def test_misc_settings_admin_and_logs_methods_use_swagger_paths() -> None:
     client = RecordingClient()
 

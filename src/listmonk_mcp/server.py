@@ -22,7 +22,7 @@ from mcp.server.fastmcp import FastMCP
 from mcp.types import ToolAnnotations
 from pydantic import Field, WithJsonSchema
 
-from .client import ListmonkClient, compact_payload
+from .client import ListmonkClient, compact_payload, listmonk_query_string_literal
 from .config import Config
 from .config import get_config as load_runtime_config
 from .exceptions import safe_execute_async
@@ -134,17 +134,15 @@ ApprovalPayload = Annotated[
         }
     ),
 ]
-OptionalTransactionalDataPayload = Annotated[
-    dict[str, Any] | None,
+TransactionalDataPayload = Annotated[
+    dict[str, Any],
     Field(
         description="Template data object for Listmonk transactional email rendering."
     ),
     WithJsonSchema(
         {
-            "anyOf": [
-                {"type": "object", "additionalProperties": True},
-                {"type": "null"},
-            ],
+            "type": "object",
+            "additionalProperties": True,
         }
     ),
 ]
@@ -384,7 +382,9 @@ async def _lookup_subscriber_by_email(email: str) -> dict[str, Any] | None:
         found = _one_from_response(response)
         if found is not None:
             return found
-    response = await client.get_subscribers(query=f"subscribers.email = '{email}'")
+    response = await client.get_subscribers(
+        query=f"subscribers.email = {listmonk_query_string_literal(email)}"
+    )
     results = _results_from_response(response)
     return results[0] if results else None
 
@@ -1363,7 +1363,7 @@ async def send_transactional_email(
     subscriber_mode: str | None = None,
     from_email: str | None = None,
     subject: str | None = None,
-    data: OptionalTransactionalDataPayload = None,
+    data: TransactionalDataPayload | None = None,
     headers: list[dict[str, Any]] | None = None,
     messenger: str | None = None,
     content_type: str = "html",
@@ -1899,7 +1899,7 @@ async def safe_send_transactional_email(
     recipientEmail: str | None = None,
     recipientSubscriberId: int | None = None,
     subject: str | None = None,
-    data: OptionalTransactionalDataPayload = None,
+    data: TransactionalDataPayload | None = None,
     contentType: str = "html",
     confirmSend: bool = False,
     idempotencyKey: str | None = None,

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.7
+
+- Expose transactional email `data` schemas using a non-null object alias with optional parameters for connector compatibility.
+- Escape single quotes in subscriber email lookup queries.
+
 ## 0.4.6
 
 - Expose transactional email `data` schemas with explicit `anyOf` object/null JSON Schema for connector compatibility.

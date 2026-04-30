@@ -35,6 +35,13 @@ def compact_payload(values: dict[str, Any]) -> dict[str, Any]:
     return {key: value for key, value in values.items() if value is not None}
 
 
+def listmonk_query_string_literal(value: str) -> str:
+    """Return a single-quoted Listmonk query string literal."""
+
+    escaped = value.replace("'", "''")
+    return f"'{escaped}'"
+
+
 class ListmonkAPIError(Exception):
     """Raised when Listmonk returns an error or cannot be reached."""
 
@@ -235,7 +242,9 @@ class ListmonkClient:
         return await self._request("GET", f"/api/subscribers/{subscriber_id}")
 
     async def get_subscriber_by_email(self, email: str) -> dict[str, Any]:
-        data = await self.get_subscribers(query=f"subscribers.email = '{email}'")
+        data = await self.get_subscribers(
+            query=f"subscribers.email = {listmonk_query_string_literal(email)}"
+        )
         results = data.get("data", {}).get("results", [])
         return {"data": results[0] if results else None}
 

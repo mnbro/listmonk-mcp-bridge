@@ -74,6 +74,16 @@ class FakeSideEffectClient:
         return {"data": {"query": query}}
 
 
+class QueryOnlyClient:
+    def __init__(self) -> None:
+        self.queries: list[str | None] = []
+
+    async def get_subscribers(self, **kwargs: Any) -> dict[str, Any]:
+        query = kwargs.get("query")
+        self.queries.append(str(query) if query is not None else None)
+        return {"data": {"results": [], "total": 0}}
+
+
 def test_create_production_server_returns_registered_server() -> None:
     assert server.create_production_server() is server.mcp
 
@@ -380,6 +390,19 @@ async def test_send_transactional_email_accepts_data_object(
 
     assert result["success"] is True
     assert result["data"]["data"] == {"name": "Ada", "nested": {"value": 1}}
+
+
+@pytest.mark.asyncio
+async def test_lookup_subscriber_by_email_escapes_query_literal(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_client = QueryOnlyClient()
+    monkeypatch.setattr(server, "get_client", lambda: fake_client)
+
+    result = await server._lookup_subscriber_by_email("o'hara@example.com")
+
+    assert result is None
+    assert fake_client.queries == ["subscribers.email = 'o''hara@example.com'"]
 
 
 @pytest.mark.asyncio
