@@ -134,12 +134,17 @@ ApprovalPayload = Annotated[
         }
     ),
 ]
-TransactionalDataPayload = Annotated[
-    dict[str, Any],
+OptionalTransactionalDataPayload = Annotated[
+    dict[str, Any] | None,
     Field(
         description="Template data object for Listmonk transactional email rendering."
     ),
-    WithJsonSchema({"type": "object", "additionalProperties": True}),
+    WithJsonSchema(
+        {
+            "type": ["object", "null"],
+            "additionalProperties": True,
+        }
+    ),
 ]
 ImportSubscriberParamsPayload = Annotated[
     dict[str, Any],
@@ -1356,7 +1361,7 @@ async def send_transactional_email(
     subscriber_mode: str | None = None,
     from_email: str | None = None,
     subject: str | None = None,
-    data: TransactionalDataPayload | None = None,
+    data: OptionalTransactionalDataPayload = None,
     headers: list[dict[str, Any]] | None = None,
     messenger: str | None = None,
     content_type: str = "html",
@@ -1892,7 +1897,7 @@ async def safe_send_transactional_email(
     recipientEmail: str | None = None,
     recipientSubscriberId: int | None = None,
     subject: str | None = None,
-    data: TransactionalDataPayload | None = None,
+    data: OptionalTransactionalDataPayload = None,
     contentType: str = "html",
     confirmSend: bool = False,
     idempotencyKey: str | None = None,

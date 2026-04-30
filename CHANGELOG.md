@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.4
+
+- Expose transactional email `data` schemas as explicit `object | null`.
+
 ## 0.4.3
 
 - Improve transactional email data schemas for template variable objects.
