@@ -77,6 +77,16 @@ class HelperClient:
                 "sent": 4,
                 "to_send": 0,
             },
+            13: {
+                "id": 13,
+                "name": "No Detailed Analytics",
+                "subject": "Stats",
+                "body": "Stats",
+                "status": "sent",
+                "lists": [{"id": 1, "name": "Main"}],
+                "views": 10,
+                "clicks": 2,
+            },
         }
 
     async def get_subscribers(self, **kwargs: Any) -> dict[str, Any]:
@@ -151,7 +161,7 @@ class HelperClient:
         from_date: str | None = None,
         to_date: str | None = None,
     ) -> dict[str, Any]:
-        if campaign_id == 12:
+        if campaign_id in {12, 13}:
             raise ListmonkAPIError("not found", status_code=404)
         del campaign_id, from_date, to_date
         if type == "views":
@@ -486,6 +496,34 @@ async def test_campaign_performance_summary_uses_campaign_field_fallback(
     assert summary["warnings"] == [
         "Detailed analytics endpoint unavailable; using aggregate campaign fields."
     ]
+
+
+@pytest.mark.asyncio
+async def test_export_engagement_events_handles_missing_detailed_analytics(
+    helper_client: HelperClient,
+) -> None:
+    result = await server.export_engagement_events(
+        campaignId=13, eventTypes=["email_viewed", "email_clicked"]
+    )
+
+    assert result == {
+        "success": True,
+        "supported": False,
+        "events": [],
+        "unsupported": [
+            {
+                "eventType": "email_viewed",
+                "reason": "Detailed analytics endpoint unavailable; event-level data is not available for this campaign.",
+            },
+            {
+                "eventType": "email_clicked",
+                "reason": "Detailed analytics endpoint unavailable; event-level data is not available for this campaign.",
+            },
+        ],
+        "warnings": [
+            "Listmonk returned 404 for detailed analytics; use campaign_performance_summary for aggregate metrics."
+        ],
+    }
 
 
 @pytest.mark.asyncio

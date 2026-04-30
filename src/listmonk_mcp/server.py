@@ -2172,6 +2172,7 @@ async def export_engagement_events(
     type_map = {"email_viewed": "views", "email_clicked": "clicks"}
     events: list[dict[str, Any]] = []
     unsupported: list[dict[str, str]] = []
+    warnings: list[str] = []
     campaign = _one_from_response(await get_client().get_campaign(campaignId)) or {}
     for event_type in requested:
         metric = type_map.get(event_type)
@@ -2183,11 +2184,28 @@ async def export_engagement_events(
                 }
             )
             continue
-        analytics = _normalize_listmonk_response(
-            await get_client().get_campaign_analytics(
-                campaignId, metric, fromDate, toDate
+        try:
+            analytics = _normalize_listmonk_response(
+                await get_client().get_campaign_analytics(
+                    campaignId, metric, fromDate, toDate
+                )
             )
-        )
+        except ListmonkAPIError as exc:
+            if exc.status_code == 404:
+                unsupported.append(
+                    {
+                        "eventType": event_type,
+                        "reason": "Detailed analytics endpoint unavailable; event-level data is not available for this campaign.",
+                    }
+                )
+                warning = (
+                    "Listmonk returned 404 for detailed analytics; use "
+                    "campaign_performance_summary for aggregate metrics."
+                )
+                if warning not in warnings:
+                    warnings.append(warning)
+                continue
+            raise
         if not isinstance(analytics, list):
             unsupported.append(
                 {
@@ -2226,6 +2244,7 @@ async def export_engagement_events(
         "supported": not unsupported,
         "events": events,
         "unsupported": unsupported,
+        "warnings": warnings,
     }
 
 
