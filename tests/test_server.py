@@ -287,7 +287,23 @@ async def test_email_sending_tools_are_marked_side_effecting_and_require_confirm
         assert tool.annotations.openWorldHint is True
         assert tool.inputSchema["properties"]["confirm_send"]["type"] == "boolean"
 
+    safe_test_tool = tools["safe_test_campaign"]
+    assert safe_test_tool.annotations is not None
+    assert safe_test_tool.annotations.readOnlyHint is False
+    assert safe_test_tool.annotations.destructiveHint is False
+    assert safe_test_tool.annotations.idempotentHint is False
+    assert safe_test_tool.annotations.openWorldHint is True
+    assert safe_test_tool.inputSchema["properties"]["confirmSend"]["type"] == "boolean"
+
     result = await server.send_campaign(campaign_id=7)
+
+    assert result["success"] is False
+    assert result["error"]["error_type"] == "SendConfirmationRequired"
+    assert result["error"]["confirm_required"] is True
+
+    result = await server.safe_test_campaign(
+        campaignId=7, testRecipients=["test@example.com"]
+    )
 
     assert result["success"] is False
     assert result["error"]["error_type"] == "SendConfirmationRequired"

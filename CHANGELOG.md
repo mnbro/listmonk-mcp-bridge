@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.9
+
+- Extract campaign list IDs from both integer and object-shaped Listmonk campaign payloads.
+- Send full campaign payloads for Listmonk campaign test sends and add `safe_test_campaign`.
+
 ## 0.4.8
 
 - Add generic example properties to transactional email `data` schemas while keeping free-form JSON support.

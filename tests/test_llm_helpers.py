@@ -49,10 +49,10 @@ class HelperClient:
             10: {
                 "id": 10,
                 "name": "April Newsletter",
-                "subject": "Hello {{name}}",
+                "subject": "Hello {{ .Subscriber.Name }}",
                 "body": "Update for {{customer_type}}",
                 "status": "draft",
-                "lists": [1],
+                "lists": [{"id": 1, "name": "Main"}],
                 "content_type": "html",
             },
             11: {
@@ -326,6 +326,9 @@ async def test_campaign_risk_check_low_and_high(helper_client: HelperClient) -> 
     high = await server.campaign_risk_check(campaignId=11)
 
     assert low["riskLevel"] in {"low", "medium"}
+    assert low["audience"]["listIds"] == [1]
+    assert low["audience"]["estimatedCount"] == 2
+    assert "Campaign has no target lists in the returned payload" not in low["blockers"]
     assert high["riskLevel"] == "high"
     assert high["blockers"]
 
@@ -352,6 +355,35 @@ async def test_safe_send_campaign_blocks_and_sends(helper_client: HelperClient) 
     assert sent["sent"] is True
     assert helper_client.test_sends
     assert helper_client.sent_campaigns == [10]
+    assert sent["auditId"].startswith("audit-")
+
+
+@pytest.mark.asyncio
+async def test_safe_test_campaign_blocks_and_sends(helper_client: HelperClient) -> None:
+    blocked = await server.safe_test_campaign(
+        campaignId=10,
+        testRecipients=["test@example.com"],
+    )
+    sent = await server.safe_test_campaign(
+        campaignId=10,
+        testRecipients=["test@example.com"],
+        confirmSend=True,
+    )
+    invalid = await server.safe_test_campaign(
+        campaignId=10,
+        testRecipients=["not-an-email"],
+        confirmSend=True,
+    )
+
+    assert blocked["success"] is False
+    assert blocked["error"]["error_type"] == "SendConfirmationRequired"
+    assert invalid["success"] is False
+    assert invalid["blockers"] == ["Invalid email recipient: not-an-email"]
+    assert sent["sent"] is True
+    assert helper_client.test_sends[-1] == {
+        "campaign_id": 10,
+        "subscribers": ["test@example.com"],
+    }
     assert sent["auditId"].startswith("audit-")
 
 

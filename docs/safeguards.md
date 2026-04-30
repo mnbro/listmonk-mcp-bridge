@@ -27,12 +27,15 @@ Query-driven destructive actions are rate limited per process by `LISTMONK_MCP_B
 
 ## Real Email Sends
 
-These tools require `confirm_send=true`:
+These tools require explicit send confirmation (`confirm_send=true` for low-level wrappers, `confirmSend=true` for safe helper tools):
 
 - `send_campaign`
 - `test_campaign`
+- `safe_test_campaign`
+- `safe_send_campaign`
 - `send_subscriber_optin`
 - `send_transactional_email`
+- `safe_send_transactional_email`
 
 ## Audit Logging
 

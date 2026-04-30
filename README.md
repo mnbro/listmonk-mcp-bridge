@@ -42,6 +42,7 @@ Recommended helper tools for agents:
 - `personalization_fields_report`
 - `validate_message_personalization`
 - `campaign_risk_check`
+- `safe_test_campaign`
 - `safe_send_campaign`
 - `safe_schedule_campaign`
 - `safe_send_transactional_email`
@@ -108,6 +109,14 @@ Example personalization and send checks:
   "campaignId": 123,
   "requireTestSend": true,
   "maxAudienceSize": 5000
+}
+```
+
+```json
+{
+  "campaignId": 123,
+  "testRecipients": ["test@example.com"],
+  "confirmSend": true
 }
 ```
 

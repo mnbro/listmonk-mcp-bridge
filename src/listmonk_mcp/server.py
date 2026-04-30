@@ -22,7 +22,12 @@ from mcp.server.fastmcp import FastMCP
 from mcp.types import ToolAnnotations
 from pydantic import Field, WithJsonSchema
 
-from .client import ListmonkClient, compact_payload, listmonk_query_string_literal
+from .client import (
+    ListmonkClient,
+    compact_payload,
+    extract_campaign_list_ids,
+    listmonk_query_string_literal,
+)
 from .config import Config
 from .config import get_config as load_runtime_config
 from .exceptions import safe_execute_async
@@ -156,6 +161,17 @@ TransactionalDataPayload = Annotated[
         }
     ),
 ]
+TestRecipientsPayload = Annotated[
+    list[str],
+    Field(description="Recipient email addresses for a Listmonk campaign test send."),
+    WithJsonSchema(
+        {
+            "type": "array",
+            "items": {"type": "string", "format": "email"},
+            "minItems": 1,
+        }
+    ),
+]
 ImportSubscriberParamsPayload = Annotated[
     dict[str, Any],
     Field(description="Subscriber import parameters"),
@@ -203,6 +219,7 @@ mcp = FastMCP(name="listmonk-mcp-bridge", lifespan=lifespan)
 _client: ListmonkClient | None = None
 _bulk_query_events: deque[float] = deque()
 _template_variable_pattern = re.compile(r"{{\s*([^{}]+?)\s*}}")
+_email_pattern = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 _data_dir = Path("data")
 _sync_log_path = _data_dir / "sync_logs.json"
 _send_audit_log_path = _data_dir / "send_audit_log.json"
@@ -383,6 +400,20 @@ def _list_ids_from_subscriber(subscriber: dict[str, Any]) -> list[int]:
         if isinstance(value, int):
             ids.append(value)
     return ids
+
+
+def _extract_campaign_list_ids(campaign: dict[str, Any]) -> list[int]:
+    return extract_campaign_list_ids(campaign)
+
+
+def _email_recipient_blockers(recipients: list[str]) -> list[str]:
+    blockers: list[str] = []
+    if not recipients:
+        blockers.append("At least one recipient email address is required")
+    for recipient in recipients:
+        if not isinstance(recipient, str) or not _email_pattern.fullmatch(recipient):
+            blockers.append(f"Invalid email recipient: {recipient}")
+    return blockers
 
 
 async def _lookup_subscriber_by_email(email: str) -> dict[str, Any] | None:
@@ -1184,13 +1215,64 @@ async def send_campaign(campaign_id: int, confirm_send: bool = False) -> dict[st
 
 @mcp.tool(annotations=MUTATING)
 async def test_campaign(
-    campaign_id: int, subscribers: list[str], confirm_send: bool = False
+    campaign_id: int,
+    subscribers: TestRecipientsPayload,
+    confirm_send: bool = False,
 ) -> dict[str, Any]:
     if blocked := send_confirmation_required(
         confirm_send, "test campaign", campaign_id=campaign_id, subscribers=subscribers
     ):
         return blocked
+    if blockers := _email_recipient_blockers(subscribers):
+        return {
+            "success": False,
+            "sent": False,
+            "campaign_id": campaign_id,
+            "blockers": blockers,
+        }
     return await _call(lambda: get_client().test_campaign(campaign_id, subscribers))
+
+
+@mcp.tool(annotations=MUTATING)
+async def safe_test_campaign(
+    campaignId: int,
+    testRecipients: TestRecipientsPayload,
+    confirmSend: bool = False,
+) -> dict[str, Any]:
+    if not confirmSend:
+        return (
+            send_confirmation_required(
+                False,
+                "safe test campaign",
+                campaignId=campaignId,
+                testRecipientCount=len(testRecipients),
+            )
+            or {}
+        )
+    if blockers := _email_recipient_blockers(testRecipients):
+        return {
+            "success": False,
+            "sent": False,
+            "campaignId": campaignId,
+            "blockers": blockers,
+        }
+    result = await get_client().test_campaign(campaignId, testRecipients)
+    audit_id = write_safety_audit_log(
+        "safe_test_campaign",
+        "campaign",
+        str(campaignId),
+        "test_send",
+        {"testRecipientCount": len(testRecipients)},
+        {"sent": True},
+    )
+    return {
+        "success": True,
+        "sent": True,
+        "campaignId": campaignId,
+        "testRecipientCount": len(testRecipients),
+        "auditId": audit_id,
+        "data": result,
+    }
 
 
 @mcp.tool(annotations=MUTATING)
@@ -1801,9 +1883,7 @@ async def _campaign_risk_check_data(
         blockers.append("Campaign subject is missing")
     if not body:
         blockers.append("Campaign body is missing")
-    list_ids = [
-        int(item) for item in campaign.get("lists", []) if isinstance(item, int)
-    ]
+    list_ids = _extract_campaign_list_ids(campaign)
     audience = await _collect_audience_subscribers(list_ids) if list_ids else []
     if not list_ids:
         blockers.append("Campaign has no target lists in the returned payload")

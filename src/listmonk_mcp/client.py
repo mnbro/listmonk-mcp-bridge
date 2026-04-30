@@ -42,6 +42,53 @@ def listmonk_query_string_literal(value: str) -> str:
     return f"'{escaped}'"
 
 
+def extract_campaign_list_ids(campaign: dict[str, Any]) -> list[int]:
+    """Extract list IDs from Listmonk campaign payloads."""
+
+    ids: list[int] = []
+    for item in campaign.get("lists") or []:
+        value: Any
+        if isinstance(item, dict):
+            value = item.get("id")
+        else:
+            value = item
+        if isinstance(value, bool):
+            continue
+        if isinstance(value, int):
+            ids.append(value)
+        elif isinstance(value, str) and value.isdigit():
+            ids.append(int(value))
+    return ids
+
+
+def campaign_test_payload(
+    campaign: dict[str, Any], subscribers: list[str]
+) -> dict[str, Any]:
+    """Build the payload Listmonk expects for campaign test sends."""
+
+    template = campaign.get("template")
+    template_id = campaign.get("template_id")
+    if template_id is None and isinstance(template, dict):
+        template_id = template.get("id")
+    return compact_payload(
+        {
+            "name": campaign.get("name"),
+            "subject": campaign.get("subject"),
+            "lists": extract_campaign_list_ids(campaign),
+            "type": campaign.get("type"),
+            "from_email": campaign.get("from_email"),
+            "body": campaign.get("body"),
+            "content_type": campaign.get("content_type"),
+            "altbody": campaign.get("altbody"),
+            "template_id": template_id,
+            "tags": campaign.get("tags"),
+            "messenger": campaign.get("messenger"),
+            "headers": campaign.get("headers"),
+            "subscribers": subscribers,
+        }
+    )
+
+
 class ListmonkAPIError(Exception):
     """Raised when Listmonk returns an error or cannot be reached."""
 
@@ -721,10 +768,14 @@ class ListmonkClient:
     async def test_campaign(
         self, campaign_id: int, subscribers: list[str]
     ) -> dict[str, Any]:
+        response = await self.get_campaign(campaign_id)
+        campaign = response.get("data", {})
+        if not isinstance(campaign, dict):
+            campaign = {}
         return await self._request(
             "POST",
             f"/api/campaigns/{campaign_id}/test",
-            json_data={"subscribers": subscribers},
+            json_data=campaign_test_payload(campaign, subscribers),
         )
 
     async def get_templates(self, no_body: bool | None = None) -> dict[str, Any]:

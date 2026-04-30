@@ -63,6 +63,28 @@ class RecordingClient(ListmonkClient):
         return {"text": "<p>Preview</p>"}
 
 
+class CampaignRecordingClient(RecordingClient):
+    async def get_campaign(
+        self, campaign_id: int, no_body: bool | None = None
+    ) -> dict[str, Any]:
+        del no_body
+        return {
+            "data": {
+                "id": campaign_id,
+                "name": "Draft",
+                "subject": "Hello",
+                "lists": [{"id": 1, "name": "Test"}],
+                "type": "regular",
+                "from_email": "Sender <sender@example.com>",
+                "body": "<p>Hello</p>",
+                "content_type": "html",
+                "template": {"id": 3},
+                "tags": ["test"],
+                "messenger": "email",
+            }
+        }
+
+
 def last_payload(client: RecordingClient) -> dict[str, Any]:
     payload = client.requests[-1]["json_data"]
     assert isinstance(payload, dict)
@@ -352,6 +374,32 @@ async def test_transactional_email_supports_multiple_recipient_modes() -> None:
         "headers": [{"X-Test": "1"}],
         "messenger": "email",
         "altbody": "Plain text",
+    }
+
+
+@pytest.mark.asyncio
+async def test_test_campaign_sends_campaign_payload_with_email_recipients() -> None:
+    client = CampaignRecordingClient()
+
+    await client.test_campaign(
+        campaign_id=33,
+        subscribers=["hello@ediblelandscapecreators.org"],
+    )
+
+    assert last_request(client)["method"] == "POST"
+    assert last_request(client)["endpoint"] == "/api/campaigns/33/test"
+    assert last_payload(client) == {
+        "name": "Draft",
+        "subject": "Hello",
+        "lists": [1],
+        "type": "regular",
+        "from_email": "Sender <sender@example.com>",
+        "body": "<p>Hello</p>",
+        "content_type": "html",
+        "template_id": 3,
+        "tags": ["test"],
+        "messenger": "email",
+        "subscribers": ["hello@ediblelandscapecreators.org"],
     }
 
 

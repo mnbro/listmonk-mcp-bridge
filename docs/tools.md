@@ -20,6 +20,7 @@ These tools compose existing Listmonk wrappers into safer primitives for LLM age
 | `personalization_fields_report` | read-only | Reports available personalization fields, coverage, safe fields, risky fields and minimal examples. |
 | `validate_message_personalization` | read-only | Detects `{{variable}}` usage in subject/body and reports missing or low-coverage fields. |
 | `campaign_risk_check` | read-only | Checks campaign readiness without sending or changing status. Returns blockers, warnings and recommendations. |
+| `safe_test_campaign` | send | Accepts recipient email addresses as `testRecipients`, validates input, requires `confirmSend=true`, sends a Listmonk test campaign and writes audit logs. |
 | `safe_send_campaign` | send | Runs risk checks, validates optional approval evidence, optionally sends a test, requires `confirmSend=true`, then sends through the existing API wrapper and writes audit logs. |
 | `safe_schedule_campaign` | mutating | Runs risk checks, validates optional approval evidence, requires `confirmSchedule=true`, schedules through the existing API wrapper and writes audit logs. |
 | `safe_send_transactional_email` | send | Requires `confirmSend=true`, validates recipient input, supports `idempotencyKey`, sends through the existing transactional email wrapper and writes audit logs. |
@@ -112,7 +113,8 @@ dry runs and upserts can fail with a Listmonk permission error.
 | `create_campaign` | mutating | Create campaign; can auto-convert plain text to HTML. |
 | `update_campaign` | mutating | Update campaign. |
 | `send_campaign` | send | Requires `confirm_send=true`. |
-| `test_campaign` | send | Requires `confirm_send=true`. |
+| `test_campaign` | send | Requires `confirm_send=true`; `subscribers` must be recipient email addresses. The client sends the current campaign payload plus those recipients to match Listmonk's test endpoint requirements. |
+| `safe_test_campaign` | send | Requires `confirmSend=true`; recommended wrapper for agents because it validates `testRecipients` and writes audit logs. |
 | `schedule_campaign` | mutating | Schedule send. |
 | `update_campaign_status` | mutating | Change campaign status. |
 | `delete_campaign` | destructive | Requires `confirm=true`. |

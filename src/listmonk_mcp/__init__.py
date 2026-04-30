@@ -1,6 +1,6 @@
 """Listmonk MCP Server package."""
 
-__version__ = "0.4.8"
+__version__ = "0.4.9"
 
 # Core components
 from .client import ListmonkAPIError, ListmonkClient
