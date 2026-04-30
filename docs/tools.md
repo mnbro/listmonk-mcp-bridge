@@ -8,6 +8,27 @@ Tools are grouped by operational area. The server uses MCP `ToolAnnotations`:
 - `sensitive read`: requires `confirm_read=true`.
 - `send`: sends real email and requires `confirm_send=true`.
 
+## LLM-Friendly Helper Tools
+
+These tools compose existing Listmonk wrappers into safer primitives for LLM agents. They are generic and do not call external systems or encode business-specific workflows.
+
+| Tool | Class | Notes |
+| --- | --- | --- |
+| `upsert_subscriber_profiles` | mutating | Dry-run first bulk profile sync by email. Merges attributes, preserves existing tags, adds list memberships and writes audit logs for non-dry-run executions. |
+| `get_subscriber_context` | read-only | Compact subscriber context by `subscriberId` or `email`, including lists, attributes, tags, status, bounce signals and warnings. |
+| `audience_summary` | read-only | Summarizes one or more lists without returning huge subscriber payloads. Includes status counts, attribute coverage, tags and warnings. |
+| `personalization_fields_report` | read-only | Reports available personalization fields, coverage, safe fields, risky fields and minimal examples. |
+| `validate_message_personalization` | read-only | Detects `{{variable}}` usage in subject/body and reports missing or low-coverage fields. |
+| `campaign_risk_check` | read-only | Checks campaign readiness without sending or changing status. Returns blockers, warnings and recommendations. |
+| `safe_send_campaign` | send | Runs risk checks, validates optional approval evidence, optionally sends a test, requires `confirmSend=true`, then sends through the existing API wrapper and writes audit logs. |
+| `safe_schedule_campaign` | mutating | Runs risk checks, validates optional approval evidence, requires `confirmSchedule=true`, schedules through the existing API wrapper and writes audit logs. |
+| `safe_send_transactional_email` | send | Requires `confirmSend=true`, validates recipient input, supports `idempotencyKey`, sends through the existing transactional email wrapper and writes audit logs. |
+| `campaign_performance_summary` | read-only | Aggregates available analytics into a compact LLM-friendly summary. Marks unavailable metrics explicitly. |
+| `export_engagement_events` | read-only | Best-effort normalized event export. Returns `supported=false` for event types where Listmonk exposes only aggregate data. |
+| `export_campaign_markdown` | read-only | Generic campaign Markdown export with optional body and stats. |
+| `export_campaign_postmortem_markdown` | read-only | Generic postmortem Markdown based on `campaign_performance_summary`. |
+| `export_subscriber_communication_summary` | read-only | Generic subscriber communication summary with structured data and Markdown. |
+
 ## Health, Settings and Admin
 
 | Tool | Class | Notes |

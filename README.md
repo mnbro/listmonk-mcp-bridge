@@ -28,6 +28,145 @@ Documentation: https://mnbro.github.io/listmonk-mcp-bridge/
 
 It includes runtime confirmations for destructive actions, real email sends and sensitive reads.
 
+## LLM-friendly helper tools
+
+This MCP remains a generic Listmonk domain MCP. It does not orchestrate external systems, call other MCP servers, or hardcode external workflows.
+
+The helper tools are built on top of the existing Listmonk API wrappers. They give LLM agents safer primitives for subscriber profile sync, audience inspection, personalization validation, campaign risk checks, guarded sends, generic exports and audit logs.
+
+Recommended helper tools for agents:
+
+- `upsert_subscriber_profiles`
+- `get_subscriber_context`
+- `audience_summary`
+- `personalization_fields_report`
+- `validate_message_personalization`
+- `campaign_risk_check`
+- `safe_send_campaign`
+- `safe_schedule_campaign`
+- `safe_send_transactional_email`
+- `campaign_performance_summary`
+- `export_engagement_events`
+- `export_campaign_markdown`
+- `export_campaign_postmortem_markdown`
+- `export_subscriber_communication_summary`
+
+Example profile sync dry run:
+
+```json
+{
+  "profiles": [
+    {
+      "externalId": "abc-123",
+      "source": "external-system",
+      "email": "ana@example.com",
+      "name": "Ana Popescu",
+      "attributes": {
+        "birthday": "1990-05-10",
+        "customer_type": "vip"
+      },
+      "tags": ["vip"],
+      "listIds": [1, 2],
+      "status": "enabled"
+    }
+  ],
+  "dryRun": true
+}
+```
+
+Example personalization and send checks:
+
+```json
+{
+  "email": "ana@example.com"
+}
+```
+
+```json
+{
+  "listIds": [1, 2],
+  "filters": {}
+}
+```
+
+```json
+{
+  "subject": "Salut {{name}}",
+  "body": "Avem o ofertă pentru {{customer_type}}.",
+  "listIds": [1],
+  "sampleSubscriberIds": [123, 456]
+}
+```
+
+```json
+{
+  "campaignId": 123,
+  "requireTestSend": true,
+  "maxAudienceSize": 5000
+}
+```
+
+```json
+{
+  "campaignId": 123,
+  "confirmSend": true,
+  "approval": {
+    "required": true,
+    "status": "approved",
+    "approvalId": "approval-123"
+  },
+  "requireTestSend": true,
+  "testRecipients": ["test@example.com"]
+}
+```
+
+```json
+{
+  "templateId": 10,
+  "recipientEmail": "ana@example.com",
+  "subject": "Mesaj pentru tine",
+  "data": {
+    "name": "Ana"
+  },
+  "contentType": "html",
+  "confirmSend": true,
+  "idempotencyKey": "unique-event-key-123"
+}
+```
+
+Example generic exports:
+
+```json
+{
+  "campaignId": 123,
+  "fromDate": "2026-04-01",
+  "toDate": "2026-04-30"
+}
+```
+
+```json
+{
+  "campaignId": 123,
+  "eventTypes": ["email_viewed", "email_clicked"]
+}
+```
+
+```json
+{
+  "campaignId": 123,
+  "includeBody": true,
+  "includeStats": true
+}
+```
+
+```json
+{
+  "subscriberId": 123,
+  "fromDate": "2026-01-01",
+  "toDate": "2026-04-30"
+}
+```
+
 ## License
 
 This project is licensed under the [PolyForm Internal Use License 1.0.0](LICENSE).

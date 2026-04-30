@@ -11,8 +11,11 @@ import time
 from collections import deque
 from collections.abc import Awaitable, Callable
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 from importlib.metadata import PackageNotFoundError, version
-from typing import Annotated, Any
+from pathlib import Path
+from typing import Annotated, Any, cast
+from uuid import uuid4
 
 import typer
 from mcp.server.fastmcp import FastMCP
@@ -135,6 +138,11 @@ async def lifespan(app: Any) -> Any:
 mcp = FastMCP(name="listmonk-mcp-bridge", lifespan=lifespan)
 _client: ListmonkClient | None = None
 _bulk_query_events: deque[float] = deque()
+_template_variable_pattern = re.compile(r"{{\s*([a-zA-Z_][a-zA-Z0-9_.-]*)\s*}}")
+_data_dir = Path("data")
+_sync_log_path = _data_dir / "sync_logs.json"
+_send_audit_log_path = _data_dir / "send_audit_log.json"
+_idempotency_keys_path = _data_dir / "idempotency_keys.json"
 
 
 def create_production_server() -> FastMCP:
@@ -211,6 +219,194 @@ def audit_confirmed_operation(kind: str, operation: str, **context: Any) -> None
             {"kind": kind, "operation": operation, "context": redacted}, sort_keys=True
         ),
     )
+
+
+def _utc_now_iso() -> str:
+    return datetime.now(UTC).isoformat().replace("+00:00", "Z")
+
+
+def _read_json_file(path: Path, default: Any) -> Any:
+    if not path.exists():
+        return default
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return default
+
+
+def _write_json_file(path: Path, value: Any) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(value, indent=2, sort_keys=True), encoding="utf-8")
+
+
+def _append_json_log(path: Path, entry: dict[str, Any]) -> None:
+    current = _read_json_file(path, [])
+    entries = current if isinstance(current, list) else []
+    entries.append(entry)
+    _write_json_file(path, entries)
+
+
+def write_safety_audit_log(
+    tool_name: str,
+    entity_type: str,
+    entity_id: str,
+    action: str,
+    input_summary: dict[str, Any],
+    result: dict[str, Any],
+    warnings: list[str] | None = None,
+) -> str:
+    audit_id = f"audit-{uuid4().hex}"
+    entry = {
+        "auditId": audit_id,
+        "toolName": tool_name,
+        "entityType": entity_type,
+        "entityId": entity_id,
+        "action": action,
+        "inputSummary": _redact_audit_value("inputSummary", input_summary),
+        "result": _redact_audit_value("result", result),
+        "warnings": warnings or [],
+        "createdAt": _utc_now_iso(),
+    }
+    _append_json_log(_send_audit_log_path, entry)
+    audit_logger.warning("safety_audit %s", json.dumps(entry, sort_keys=True))
+    return audit_id
+
+
+def _normalize_listmonk_response(response: dict[str, Any]) -> Any:
+    return response.get("data", response)
+
+
+def _results_from_response(response: dict[str, Any]) -> list[dict[str, Any]]:
+    data = _normalize_listmonk_response(response)
+    if isinstance(data, dict):
+        results = data.get("results")
+        if isinstance(results, list):
+            return [item for item in results if isinstance(item, dict)]
+        items = data.get("items")
+        if isinstance(items, list):
+            return [item for item in items if isinstance(item, dict)]
+    if isinstance(data, list):
+        return [item for item in data if isinstance(item, dict)]
+    return []
+
+
+def _one_from_response(response: dict[str, Any]) -> dict[str, Any] | None:
+    data = _normalize_listmonk_response(response)
+    return data if isinstance(data, dict) else None
+
+
+def _subscriber_attribs(subscriber: dict[str, Any]) -> dict[str, Any]:
+    attribs = subscriber.get("attribs", subscriber.get("attributes", {}))
+    return attribs if isinstance(attribs, dict) else {}
+
+
+def _subscriber_tags(subscriber: dict[str, Any]) -> list[str]:
+    raw_tags = subscriber.get("tags", [])
+    return [str(tag) for tag in raw_tags] if isinstance(raw_tags, list) else []
+
+
+def _subscriber_lists(subscriber: dict[str, Any]) -> list[dict[str, Any]]:
+    raw_lists = subscriber.get("lists", [])
+    if not isinstance(raw_lists, list):
+        return []
+    return [item for item in raw_lists if isinstance(item, dict)]
+
+
+def _list_ids_from_subscriber(subscriber: dict[str, Any]) -> list[int]:
+    ids: list[int] = []
+    for item in _subscriber_lists(subscriber):
+        value = item.get("id")
+        if isinstance(value, int):
+            ids.append(value)
+    return ids
+
+
+async def _lookup_subscriber_by_email(email: str) -> dict[str, Any] | None:
+    client = get_client()
+    if hasattr(client, "get_subscriber_by_email"):
+        response = await client.get_subscriber_by_email(email)
+        found = _one_from_response(response)
+        if found is not None:
+            return found
+    response = await client.get_subscribers(query=f"subscribers.email = '{email}'")
+    results = _results_from_response(response)
+    return results[0] if results else None
+
+
+async def _lookup_subscriber(
+    subscriber_id: int | None = None, email: str | None = None
+) -> dict[str, Any] | None:
+    if subscriber_id is not None:
+        response = await get_client().get_subscriber(subscriber_id)
+        return _one_from_response(response)
+    if email:
+        return await _lookup_subscriber_by_email(email)
+    return None
+
+
+async def _collect_audience_subscribers(
+    list_ids: list[int], sample_size: int = 500
+) -> list[dict[str, Any]]:
+    subscribers_by_id: dict[str, dict[str, Any]] = {}
+    for list_id in list_ids:
+        response = await get_client().get_list_subscribers(
+            list_id, page=1, per_page=sample_size
+        )
+        for subscriber in _results_from_response(response):
+            key = str(subscriber.get("id") or subscriber.get("email") or uuid4().hex)
+            subscribers_by_id[key] = subscriber
+    return list(subscribers_by_id.values())
+
+
+def _attribute_coverage(
+    subscribers: list[dict[str, Any]], fields: list[str] | None = None
+) -> dict[str, float]:
+    discovered: set[str] = set(fields or [])
+    for subscriber in subscribers:
+        discovered.update(str(key) for key in _subscriber_attribs(subscriber))
+        if subscriber.get("name") is not None:
+            discovered.add("name")
+    if not subscribers:
+        return dict.fromkeys(sorted(discovered), 0.0)
+    coverage: dict[str, float] = {}
+    for field in sorted(discovered):
+        present = 0
+        for subscriber in subscribers:
+            value = (
+                subscriber.get("name")
+                if field == "name"
+                else _subscriber_attribs(subscriber).get(field)
+            )
+            if value not in (None, ""):
+                present += 1
+        coverage[field] = round(present / len(subscribers), 4)
+    return coverage
+
+
+def _extract_template_variables(*texts: str | None) -> list[str]:
+    variables: set[str] = set()
+    for text in texts:
+        if text:
+            variables.update(
+                match.group(1) for match in _template_variable_pattern.finditer(text)
+            )
+    return sorted(variables)
+
+
+def _risk_level(warnings: list[str], blockers: list[str]) -> str:
+    if blockers:
+        return "high"
+    if warnings:
+        return "medium"
+    return "low"
+
+
+def _approval_blocker(approval: dict[str, Any] | None) -> str | None:
+    if not approval or not approval.get("required"):
+        return None
+    if approval.get("status") != "approved":
+        return "Approval is required but approval.status is not approved"
+    return None
 
 
 def confirmation_required(
@@ -1205,6 +1401,747 @@ async def delete_unconfirmed_subscriptions(
     return await _call(
         lambda: get_client().delete_unconfirmed_subscriptions(before_date)
     )
+
+
+@mcp.tool(annotations=MUTATING)
+async def upsert_subscriber_profiles(
+    profiles: list[dict[str, Any]], dryRun: bool = True
+) -> dict[str, Any]:
+    created = 0
+    updated = 0
+    planned_created = 0
+    planned_updated = 0
+    skipped = 0
+    errors: list[dict[str, Any]] = []
+    details: list[dict[str, Any]] = []
+
+    for profile in profiles:
+        email = str(profile.get("email") or "").strip()
+        if not email:
+            skipped += 1
+            errors.append({"profile": profile, "error": "email is required"})
+            continue
+        try:
+            existing = await _lookup_subscriber_by_email(email)
+            incoming_attributes = profile.get("attributes", {})
+            attributes = (
+                dict(incoming_attributes)
+                if isinstance(incoming_attributes, dict)
+                else {}
+            )
+            if profile.get("externalId") is not None:
+                attributes["externalId"] = profile["externalId"]
+            if profile.get("source") is not None:
+                attributes["source"] = profile["source"]
+            incoming_tags = {
+                str(tag) for tag in profile.get("tags", []) if str(tag).strip()
+            }
+            list_ids = [
+                int(item)
+                for item in profile.get("listIds", [])
+                if isinstance(item, int)
+            ]
+            if existing is None:
+                action = "create"
+                final_attributes = attributes
+                final_tags = sorted(incoming_tags)
+                if not dryRun:
+                    await get_client().create_subscriber(
+                        email=email,
+                        name=str(profile.get("name") or email),
+                        status=str(profile.get("status") or "enabled"),
+                        lists=list_ids,
+                        attribs={**final_attributes, "tags": final_tags},
+                    )
+                    created += 1
+                else:
+                    planned_created += 1
+            else:
+                action = "update"
+                existing_attributes = _subscriber_attribs(existing)
+                existing_tags = set(_subscriber_tags(existing))
+                final_tags = sorted(existing_tags | incoming_tags)
+                final_attributes = {
+                    **existing_attributes,
+                    **attributes,
+                    "tags": final_tags,
+                }
+                existing_list_ids = set(_list_ids_from_subscriber(existing))
+                final_list_ids = sorted(existing_list_ids | set(list_ids))
+                if not dryRun:
+                    await get_client().update_subscriber(
+                        subscriber_id=int(existing["id"]),
+                        email=email,
+                        name=profile.get("name") or existing.get("name"),
+                        status=profile.get("status") or existing.get("status"),
+                        lists=final_list_ids,
+                        attribs=final_attributes,
+                    )
+                    updated += 1
+                else:
+                    planned_updated += 1
+            details.append(
+                {
+                    "email": email,
+                    "action": action,
+                    "dryRun": dryRun,
+                    "listIds": list_ids,
+                    "attributeKeys": sorted(final_attributes),
+                    "tags": final_tags,
+                }
+            )
+        except Exception as exc:  # noqa: BLE001
+            skipped += 1
+            errors.append({"email": email, "error": str(exc)})
+
+    result = {
+        "success": True,
+        "dryRun": dryRun,
+        "created": created,
+        "updated": updated,
+        "plannedCreated": planned_created,
+        "plannedUpdated": planned_updated,
+        "skipped": skipped,
+        "errors": errors,
+        "details": details,
+    }
+    if not dryRun:
+        audit_id = write_safety_audit_log(
+            "upsert_subscriber_profiles",
+            "subscriber_profile_batch",
+            "batch",
+            "bulk_upsert",
+            {"profileCount": len(profiles)},
+            {"created": created, "updated": updated, "skipped": skipped},
+            [],
+        )
+        _append_json_log(
+            _sync_log_path,
+            {
+                "auditId": audit_id,
+                "toolName": "upsert_subscriber_profiles",
+                "createdAt": _utc_now_iso(),
+                "result": result,
+            },
+        )
+        result["auditId"] = audit_id
+    return result
+
+
+@mcp.tool(annotations=READ_ONLY)
+async def get_subscriber_context(
+    subscriberId: int | None = None, email: str | None = None
+) -> dict[str, Any]:
+    if subscriberId is None and not email:
+        return {
+            "success": False,
+            "error": {
+                "error_type": "ValidationError",
+                "message": "subscriberId or email is required",
+            },
+        }
+    subscriber = await _lookup_subscriber(subscriberId, email)
+    if subscriber is None:
+        return {
+            "success": False,
+            "error": {"error_type": "NotFound", "message": "Subscriber not found"},
+        }
+    subscriber_id = int(subscriber.get("id", subscriberId or 0))
+    bounces_response = await get_client().get_subscriber_bounces(subscriber_id)
+    bounces = _results_from_response(bounces_response)
+    warnings: list[str] = []
+    if not _subscriber_attribs(subscriber):
+        warnings.append("Subscriber has no attributes")
+    if not _subscriber_lists(subscriber):
+        warnings.append(
+            "Subscriber is not associated with any lists in the returned payload"
+        )
+    return {
+        "success": True,
+        "subscriber": subscriber,
+        "lists": _subscriber_lists(subscriber),
+        "attributes": _subscriber_attribs(subscriber),
+        "tags": _subscriber_tags(subscriber),
+        "status": subscriber.get("status"),
+        "bounceStatus": {"count": len(bounces), "items": bounces[:10]},
+        "unsubscribeStatus": {"status": subscriber.get("status")},
+        "recentCampaigns": [],
+        "engagementSummary": {
+            "sent": 0,
+            "views": 0,
+            "clicks": 0,
+            "bounces": len(bounces),
+            "unsubscribes": 1 if subscriber.get("status") == "unsubscribed" else 0,
+        },
+        "warnings": warnings,
+    }
+
+
+@mcp.tool(annotations=READ_ONLY)
+async def audience_summary(
+    listIds: list[int], filters: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    del filters
+    subscribers = await _collect_audience_subscribers(listIds)
+    statuses = [str(item.get("status") or "").lower() for item in subscribers]
+    coverage = _attribute_coverage(subscribers)
+    warnings = [
+        f"{field} has low coverage and should not be used as required personalization"
+        for field, ratio in coverage.items()
+        if ratio < 0.6
+    ]
+    tags = sorted(
+        {tag for subscriber in subscribers for tag in _subscriber_tags(subscriber)}
+    )
+    return {
+        "success": True,
+        "estimatedCount": len(subscribers),
+        "activeCount": sum(status in {"enabled", "confirmed"} for status in statuses),
+        "disabledCount": statuses.count("disabled"),
+        "blocklistedCount": statuses.count("blocklisted"),
+        "bouncedCount": 0,
+        "unsubscribedCount": statuses.count("unsubscribed"),
+        "attributeCoverage": coverage,
+        "tags": tags,
+        "warnings": warnings,
+    }
+
+
+@mcp.tool(annotations=READ_ONLY)
+async def personalization_fields_report(
+    listIds: list[int], sampleSize: int = 500
+) -> dict[str, Any]:
+    subscribers = await _collect_audience_subscribers(listIds, sampleSize)
+    coverage = _attribute_coverage(subscribers)
+    examples: dict[str, Any] = {}
+    for field in sorted(coverage):
+        for subscriber in subscribers:
+            value = (
+                subscriber.get("name")
+                if field == "name"
+                else _subscriber_attribs(subscriber).get(field)
+            )
+            if value not in (None, ""):
+                examples[field] = "<redacted>" if "email" in field.lower() else value
+                break
+    return {
+        "success": True,
+        "availableFields": sorted(coverage),
+        "coverageByField": coverage,
+        "recommendedSafeFields": [
+            field for field, ratio in coverage.items() if ratio >= 0.75
+        ],
+        "riskyFields": [field for field, ratio in coverage.items() if ratio < 0.75],
+        "examples": examples,
+    }
+
+
+@mcp.tool(annotations=READ_ONLY)
+async def validate_message_personalization(
+    subject: str,
+    body: str,
+    listIds: list[int],
+    sampleSubscriberIds: list[int] | None = None,
+) -> dict[str, Any]:
+    subscribers = await _collect_audience_subscribers(listIds)
+    if sampleSubscriberIds:
+        sampled: list[dict[str, Any]] = []
+        for subscriber_id in sampleSubscriberIds:
+            subscriber = await _lookup_subscriber(subscriber_id=subscriber_id)
+            if subscriber is not None:
+                sampled.append(subscriber)
+        subscribers = sampled or subscribers
+    used = _extract_template_variables(subject, body)
+    coverage = _attribute_coverage(subscribers, used)
+    missing = [field for field in used if field not in coverage or coverage[field] == 0]
+    low = [
+        field
+        for field in used
+        if field not in missing and coverage.get(field, 0) < 0.75
+    ]
+    warnings = [
+        f"{field} exists but has low coverage across the target audience"
+        for field in low
+    ]
+    blockers = [
+        f"{field} is used but missing from the target audience" for field in missing
+    ]
+    return {
+        "success": True,
+        "usedVariables": used,
+        "missingVariables": missing,
+        "lowCoverageVariables": low,
+        "coverageByVariable": {field: coverage.get(field, 0.0) for field in used},
+        "warnings": warnings,
+        "blockers": blockers,
+        "riskLevel": _risk_level(warnings, blockers),
+    }
+
+
+async def _campaign_risk_check_data(
+    campaign_id: int,
+    require_test_send: bool = True,
+    max_audience_size: int = 5000,
+) -> dict[str, Any]:
+    campaign = _one_from_response(await get_client().get_campaign(campaign_id)) or {}
+    warnings: list[str] = []
+    blockers: list[str] = []
+    recommendations: list[str] = []
+    subject = str(campaign.get("subject") or "")
+    body = str(campaign.get("body") or "")
+    if not subject:
+        blockers.append("Campaign subject is missing")
+    if not body:
+        blockers.append("Campaign body is missing")
+    list_ids = [
+        int(item) for item in campaign.get("lists", []) if isinstance(item, int)
+    ]
+    audience = await _collect_audience_subscribers(list_ids) if list_ids else []
+    if not list_ids:
+        blockers.append("Campaign has no target lists in the returned payload")
+    if len(audience) == 0 and list_ids:
+        blockers.append("Campaign audience appears to be empty")
+    if len(audience) > max_audience_size:
+        warnings.append("Audience is large compared to maxAudienceSize")
+    status = str(campaign.get("status") or "").lower()
+    if status in {"running", "sent", "finished"}:
+        blockers.append(f"Campaign status is not sendable: {status}")
+    personalization = await validate_message_personalization(subject, body, list_ids)
+    blockers.extend(str(item) for item in personalization.get("blockers", []))
+    warnings.extend(str(item) for item in personalization.get("warnings", []))
+    if require_test_send:
+        recommendations.append("Send a test email before sending the campaign")
+    return {
+        "success": True,
+        "campaignId": campaign_id,
+        "riskLevel": _risk_level(warnings, blockers),
+        "warnings": warnings,
+        "blockers": blockers,
+        "recommendations": recommendations,
+        "audience": {"estimatedCount": len(audience), "listIds": list_ids},
+    }
+
+
+@mcp.tool(annotations=READ_ONLY)
+async def campaign_risk_check(
+    campaignId: int, requireTestSend: bool = True, maxAudienceSize: int = 5000
+) -> dict[str, Any]:
+    return await _campaign_risk_check_data(campaignId, requireTestSend, maxAudienceSize)
+
+
+@mcp.tool(annotations=MUTATING)
+async def safe_send_campaign(
+    campaignId: int,
+    confirmSend: bool = False,
+    approval: dict[str, Any] | None = None,
+    requireTestSend: bool = True,
+    testRecipients: list[str] | None = None,
+) -> dict[str, Any]:
+    if not confirmSend:
+        return (
+            send_confirmation_required(
+                False, "safe send campaign", campaignId=campaignId
+            )
+            or {}
+        )
+    risk = await _campaign_risk_check_data(campaignId, requireTestSend)
+    blockers = list(risk.get("blockers", []))
+    if approval_blocker := _approval_blocker(approval):
+        blockers.append(approval_blocker)
+    if blockers:
+        return {
+            "success": False,
+            "sent": False,
+            "campaignId": campaignId,
+            "riskCheck": risk,
+            "blockers": blockers,
+        }
+    test_status = "not_required"
+    if requireTestSend:
+        if not testRecipients:
+            return {
+                "success": False,
+                "sent": False,
+                "campaignId": campaignId,
+                "riskCheck": risk,
+                "blockers": ["requireTestSend=true but testRecipients is empty"],
+            }
+        await get_client().test_campaign(campaignId, testRecipients)
+        test_status = "sent"
+    send_result = await get_client().send_campaign(campaignId)
+    audit_id = write_safety_audit_log(
+        "safe_send_campaign",
+        "campaign",
+        str(campaignId),
+        "send",
+        {
+            "approval": approval,
+            "requireTestSend": requireTestSend,
+            "testRecipientCount": len(testRecipients or []),
+        },
+        {"sent": True},
+        list(risk.get("warnings", [])),
+    )
+    return {
+        "success": True,
+        "sent": True,
+        "campaignId": campaignId,
+        "riskCheck": risk,
+        "approvalStatus": (approval or {}).get("status", "not_required"),
+        "testSendStatus": test_status,
+        "auditId": audit_id,
+        "warnings": risk.get("warnings", []),
+        "data": send_result,
+    }
+
+
+@mcp.tool(annotations=MUTATING)
+async def safe_send_transactional_email(
+    templateId: int,
+    recipientEmail: str | None = None,
+    recipientSubscriberId: int | None = None,
+    subject: str | None = None,
+    data: dict[str, Any] | None = None,
+    contentType: str = "html",
+    confirmSend: bool = False,
+    idempotencyKey: str | None = None,
+) -> dict[str, Any]:
+    if not confirmSend:
+        return (
+            send_confirmation_required(
+                False, "safe send transactional email", templateId=templateId
+            )
+            or {}
+        )
+    if not recipientEmail and recipientSubscriberId is None:
+        return {
+            "success": False,
+            "sent": False,
+            "blockers": ["recipientEmail or recipientSubscriberId is required"],
+        }
+    keys = _read_json_file(_idempotency_keys_path, {})
+    if idempotencyKey and isinstance(keys, dict) and idempotencyKey in keys:
+        return {
+            "success": True,
+            "sent": False,
+            "skipped": True,
+            "reason": "idempotencyKey already processed",
+            "idempotencyKey": idempotencyKey,
+            "existing": keys[idempotencyKey],
+        }
+    template = _one_from_response(await get_client().get_template(templateId)) or {}
+    warnings: list[str] = []
+    if not template.get("body"):
+        warnings.append("Template body is not available in Listmonk response")
+    response = await get_client().send_transactional_email(
+        template_id=templateId,
+        subscriber_email=recipientEmail,
+        subscriber_id=recipientSubscriberId,
+        subject=subject,
+        data=data or {},
+        content_type=contentType,
+    )
+    audit_id = write_safety_audit_log(
+        "safe_send_transactional_email",
+        "template",
+        str(templateId),
+        "send_transactional",
+        {
+            "recipientEmail": recipientEmail,
+            "recipientSubscriberId": recipientSubscriberId,
+            "idempotencyKey": idempotencyKey,
+        },
+        {"sent": True},
+        warnings,
+    )
+    if idempotencyKey:
+        stored_keys = keys if isinstance(keys, dict) else {}
+        stored_keys[idempotencyKey] = {"auditId": audit_id, "createdAt": _utc_now_iso()}
+        _write_json_file(_idempotency_keys_path, stored_keys)
+    data_response = _one_from_response(response) or response
+    return {
+        "success": True,
+        "sent": True,
+        "recipientEmail": recipientEmail,
+        "messageId": data_response.get("id") or data_response.get("uuid"),
+        "idempotencyKey": idempotencyKey,
+        "auditId": audit_id,
+        "warnings": warnings,
+        "data": response,
+    }
+
+
+@mcp.tool(annotations=READ_ONLY)
+async def campaign_performance_summary(
+    campaignId: int, fromDate: str | None = None, toDate: str | None = None
+) -> dict[str, Any]:
+    campaign = _one_from_response(await get_client().get_campaign(campaignId)) or {}
+    metrics: dict[str, Any] = {}
+    unavailable: list[str] = []
+    for metric in ("views", "clicks", "bounces", "unsubscribes"):
+        try:
+            metrics[metric] = _normalize_listmonk_response(
+                await get_client().get_campaign_analytics(
+                    campaignId, metric, fromDate, toDate
+                )
+            )
+        except Exception:  # noqa: BLE001
+            unavailable.append(metric)
+    views = (
+        len(metrics.get("views", []))
+        if isinstance(metrics.get("views"), list)
+        else int(metrics.get("views", {}).get("total", 0))
+        if isinstance(metrics.get("views"), dict)
+        else 0
+    )
+    clicks = (
+        len(metrics.get("clicks", []))
+        if isinstance(metrics.get("clicks"), list)
+        else int(metrics.get("clicks", {}).get("total", 0))
+        if isinstance(metrics.get("clicks"), dict)
+        else 0
+    )
+    recommendations = []
+    if clicks and views and clicks / max(views, 1) >= 0.1:
+        recommendations.append("Click rate is strong compared to views")
+    if unavailable:
+        recommendations.append(
+            "Some metrics are unavailable from the Listmonk API response"
+        )
+    return {
+        "success": True,
+        "campaignId": campaignId,
+        "campaignName": campaign.get("name"),
+        "subject": campaign.get("subject"),
+        "views": views,
+        "clicks": clicks,
+        "bounces": metrics.get("bounces", 0),
+        "unsubscribes": metrics.get("unsubscribes", 0),
+        "topLinks": [],
+        "engagementRate": round(clicks / max(views, 1), 4),
+        "recommendations": recommendations,
+        "unavailableMetrics": unavailable,
+    }
+
+
+@mcp.tool(annotations=READ_ONLY)
+async def export_engagement_events(
+    campaignId: int,
+    fromDate: str | None = None,
+    toDate: str | None = None,
+    eventTypes: list[str] | None = None,
+) -> dict[str, Any]:
+    requested = eventTypes or ["email_viewed", "email_clicked"]
+    type_map = {"email_viewed": "views", "email_clicked": "clicks"}
+    events: list[dict[str, Any]] = []
+    unsupported: list[dict[str, str]] = []
+    campaign = _one_from_response(await get_client().get_campaign(campaignId)) or {}
+    for event_type in requested:
+        metric = type_map.get(event_type)
+        if metric is None:
+            unsupported.append(
+                {
+                    "eventType": event_type,
+                    "reason": "Listmonk API wrapper does not expose event-level data for this event type",
+                }
+            )
+            continue
+        analytics = _normalize_listmonk_response(
+            await get_client().get_campaign_analytics(
+                campaignId, metric, fromDate, toDate
+            )
+        )
+        if not isinstance(analytics, list):
+            unsupported.append(
+                {
+                    "eventType": event_type,
+                    "reason": "Listmonk API returned only aggregate analytics for this event type",
+                }
+            )
+            continue
+        for item in analytics:
+            if isinstance(item, dict):
+                events.append(
+                    {
+                        "eventType": event_type,
+                        "eventId": str(item.get("id") or uuid4().hex),
+                        "occurredAt": item.get("created_at") or item.get("timestamp"),
+                        "subscriberId": item.get("subscriber_id"),
+                        "email": item.get("email"),
+                        "campaignId": campaignId,
+                        "campaignName": campaign.get("name"),
+                        "metadata": {
+                            key: value
+                            for key, value in item.items()
+                            if key
+                            not in {
+                                "id",
+                                "created_at",
+                                "timestamp",
+                                "subscriber_id",
+                                "email",
+                            }
+                        },
+                    }
+                )
+    return {
+        "success": True,
+        "supported": not unsupported,
+        "events": events,
+        "unsupported": unsupported,
+    }
+
+
+@mcp.tool(annotations=READ_ONLY)
+async def export_subscriber_communication_summary(
+    subscriberId: int | None = None,
+    email: str | None = None,
+    fromDate: str | None = None,
+    toDate: str | None = None,
+) -> dict[str, Any]:
+    context = await get_subscriber_context(subscriberId, email)
+    if not context.get("success"):
+        return cast(dict[str, Any], context)
+    engagement = context["engagementSummary"]
+    subscriber = context["subscriber"]
+    summary = (
+        f"Subscriber received {engagement['sent']} campaigns, opened {engagement['views']}, "
+        f"clicked {engagement['clicks']} links, and had {engagement['bounces']} bounces."
+    )
+    markdown = (
+        "## Communication Summary\n\n"
+        f"- Subscriber: {subscriber.get('email')}\n"
+        f"- Period: {fromDate or 'unspecified'} to {toDate or 'unspecified'}\n"
+        f"- Summary: {summary}\n"
+    )
+    return {
+        "success": True,
+        "subscriber": subscriber,
+        "summary": summary,
+        "campaigns": [],
+        "transactionalEmails": [],
+        "engagement": engagement,
+        "markdown": markdown,
+    }
+
+
+@mcp.tool(annotations=READ_ONLY)
+async def export_campaign_markdown(
+    campaignId: int, includeBody: bool = True, includeStats: bool = True
+) -> dict[str, Any]:
+    campaign = _one_from_response(await get_client().get_campaign(campaignId)) or {}
+    title = f"Campaign - {campaign.get('name') or campaignId}"
+    sections = [
+        f"# {title}",
+        "",
+        f"- Campaign ID: {campaignId}",
+        f"- Subject: {campaign.get('subject') or ''}",
+    ]
+    if includeBody:
+        sections.extend(["", "## Body", "", str(campaign.get("body") or "")])
+    stats = None
+    if includeStats:
+        stats = await campaign_performance_summary(campaignId)
+        sections.extend(
+            [
+                "",
+                "## Stats",
+                "",
+                f"- Views: {stats.get('views', 0)}",
+                f"- Clicks: {stats.get('clicks', 0)}",
+            ]
+        )
+    return {
+        "success": True,
+        "title": title,
+        "markdown": "\n".join(sections),
+        "metadata": {
+            "campaignId": campaignId,
+            "subject": campaign.get("subject"),
+            "statsIncluded": includeStats,
+            "bodyIncluded": includeBody,
+        },
+    }
+
+
+@mcp.tool(annotations=READ_ONLY)
+async def export_campaign_postmortem_markdown(
+    campaignId: int, fromDate: str | None = None, toDate: str | None = None
+) -> dict[str, Any]:
+    summary = await campaign_performance_summary(campaignId, fromDate, toDate)
+    title = f"Postmortem - {summary.get('campaignName') or campaignId}"
+    markdown = (
+        f"# {title}\n\n"
+        f"- Campaign ID: {campaignId}\n"
+        f"- Subject: {summary.get('subject') or ''}\n"
+        f"- Views: {summary.get('views', 0)}\n"
+        f"- Clicks: {summary.get('clicks', 0)}\n"
+        f"- Engagement rate: {summary.get('engagementRate', 0)}\n"
+    )
+    unavailable = summary.get("unavailableMetrics", [])
+    if unavailable:
+        markdown += (
+            f"\nMissing metrics: {', '.join(str(item) for item in unavailable)}\n"
+        )
+    return {
+        "success": True,
+        "title": title,
+        "markdown": markdown,
+        "recommendations": summary.get("recommendations", []),
+        "metadata": {"campaignId": campaignId, "unavailableMetrics": unavailable},
+    }
+
+
+@mcp.tool(annotations=MUTATING)
+async def safe_schedule_campaign(
+    campaignId: int,
+    sendAt: str,
+    confirmSchedule: bool = False,
+    approval: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    if not confirmSchedule:
+        return {
+            "success": False,
+            "scheduled": False,
+            "error": {
+                "error_type": "ScheduleConfirmationRequired",
+                "message": "Set confirmSchedule=true to schedule the campaign",
+                "confirm_required": True,
+            },
+        }
+    risk = await _campaign_risk_check_data(campaignId, require_test_send=False)
+    blockers = list(risk.get("blockers", []))
+    if approval_blocker := _approval_blocker(approval):
+        blockers.append(approval_blocker)
+    if blockers:
+        return {
+            "success": False,
+            "scheduled": False,
+            "campaignId": campaignId,
+            "riskCheck": risk,
+            "blockers": blockers,
+        }
+    result = await get_client().schedule_campaign(campaignId, sendAt)
+    audit_id = write_safety_audit_log(
+        "safe_schedule_campaign",
+        "campaign",
+        str(campaignId),
+        "schedule",
+        {"sendAt": sendAt, "approval": approval},
+        {"scheduled": True},
+        list(risk.get("warnings", [])),
+    )
+    return {
+        "success": True,
+        "scheduled": True,
+        "campaignId": campaignId,
+        "sendAt": sendAt,
+        "riskCheck": risk,
+        "approvalStatus": (approval or {}).get("status", "not_required"),
+        "auditId": audit_id,
+        "warnings": risk.get("warnings", []),
+        "data": result,
+    }
 
 
 @mcp.resource("listmonk://subscriber/{subscriber_id}")

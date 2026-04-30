@@ -40,6 +40,14 @@ Confirmed high-impact operations emit structured audit log events on the `listmo
 
 Rate-limit events are logged on `listmonk_mcp.operations`.
 
+Helper tools that send email, schedule campaigns or run non-dry-run bulk subscriber updates also write JSON audit records under `data/`:
+
+- `data/sync_logs.json`
+- `data/send_audit_log.json`
+- `data/idempotency_keys.json`
+
+These files are local operational safety state only. They are not a workflow database and do not store external-system concepts.
+
 ## Production Notes
 
 - Use HTTPS for your Listmonk instance.

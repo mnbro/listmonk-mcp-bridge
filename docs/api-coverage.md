@@ -15,12 +15,14 @@ This bridge focuses on the Listmonk API surfaces that are useful for MCP clients
 | Media | List/get, upload, rename and delete media files. |
 | Maintenance | Subscriber GC cleanup, campaign analytics cleanup and unconfirmed subscription cleanup. |
 | MCP resources | Subscriber, campaign, list, template and media resource views. |
+| LLM-friendly helpers | Generic subscriber profile sync, subscriber context, audience summaries, personalization validation, campaign risk checks, safe sends/schedules, analytics summaries and Markdown/event exports. |
 
 ## Coverage Notes
 
 - The bridge is intentionally not read-only. It includes mutating and destructive Listmonk workflows, but every high-impact operation is annotated and guarded.
 - Tools keep Listmonk naming and behavior visible where it matters, while adding MCP-friendly validation and structured responses.
 - Query-driven destructive subscriber operations are rate limited to reduce accidental large-scale changes.
+- Helper tools compose existing Listmonk wrappers. They do not integrate external systems or encode cross-system workflows.
 
 ## Response Shape
 

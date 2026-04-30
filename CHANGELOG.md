@@ -2,13 +2,18 @@
 
 ## Unreleased
 
-- Add a Debian slim based Docker image for the MCP server.
-- Add a GitHub Container Registry publishing workflow and package badge.
-- Add container documentation for Docker-based MCP client configuration.
-- Rewrite the runtime implementation around a compact Listmonk API client and explicit MCP safety guardrails.
-- Change project licensing to PolyForm Internal Use License 1.0.0.
-- Remove optional Nix flake development infrastructure and CI checks.
-- Update GitHub Pages documentation deployment to support manual dispatch after Pages is enabled.
+- No unreleased changes.
+
+## 0.4.0
+
+- Add generic LLM-friendly Listmonk helper tools for profile upsert, subscriber context, audience summaries, personalization validation, campaign risk checks, safe sends/schedules, analytics summaries and exports.
+- Add local JSON safety state for generic audit logs, sync logs and transactional email idempotency keys.
+- Expand documentation for helper tools while keeping the project scoped to the Listmonk domain.
+
+## 0.3.1
+
+- Split documentation into focused pages for tools, Docker, configuration, API coverage, safeguards and development.
+- Simplify MkDocs navigation to match the flat documentation layout.
 
 ## 0.3.0
 

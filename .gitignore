@@ -38,6 +38,7 @@ ENV/
 .coverage
 htmlcov/
 site/
+data/*.json
 .tox/
 
 # Type checking
