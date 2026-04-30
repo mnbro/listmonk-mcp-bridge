@@ -141,8 +141,10 @@ OptionalTransactionalDataPayload = Annotated[
     ),
     WithJsonSchema(
         {
-            "type": ["object", "null"],
-            "additionalProperties": True,
+            "anyOf": [
+                {"type": "object", "additionalProperties": True},
+                {"type": "null"},
+            ],
         }
     ),
 ]

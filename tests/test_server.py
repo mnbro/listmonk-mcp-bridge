@@ -118,14 +118,14 @@ async def test_reported_tool_schemas_include_documented_arguments() -> None:
     assert profile_items["required"] == ["email"]
     assert profile_items["properties"]["attributes"]["type"] == "object"
     assert profile_items["properties"]["listIds"]["items"]["type"] == "integer"
-    assert tools["safe_send_transactional_email"]["properties"]["data"]["type"] == [
-        "object",
-        "null",
-    ]
-    assert tools["send_transactional_email"]["properties"]["data"]["type"] == [
-        "object",
-        "null",
-    ]
+    safe_transactional_data_schema = tools["safe_send_transactional_email"][
+        "properties"
+    ]["data"]
+    transactional_data_schema = tools["send_transactional_email"]["properties"]["data"]
+    for data_schema in (safe_transactional_data_schema, transactional_data_schema):
+        assert data_schema["anyOf"][0]["type"] == "object"
+        assert data_schema["anyOf"][0]["additionalProperties"] is True
+        assert data_schema["anyOf"][1]["type"] == "null"
     assert (
         tools["safe_send_campaign"]["properties"]["approval"]["anyOf"][0]["type"]
         == "object"

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.6
+
+- Expose transactional email `data` schemas with explicit `anyOf` object/null JSON Schema for connector compatibility.
+
 ## [0.4.5](https://github.com/mnbro/listmonk-mcp-bridge/compare/v0.4.4...v0.4.5) (2026-04-30)
 
 
