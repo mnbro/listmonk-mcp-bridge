@@ -15,6 +15,13 @@ MCP server for [Listmonk](https://listmonk.app/) newsletter operations.
 
 Documentation: https://mnbro.github.io/listmonk-mcp-bridge/
 
+- Tool list: https://mnbro.github.io/listmonk-mcp-bridge/tools/
+- Docker: https://mnbro.github.io/listmonk-mcp-bridge/docker/
+- Configuration: https://mnbro.github.io/listmonk-mcp-bridge/configuration/
+- MCP clients: https://mnbro.github.io/listmonk-mcp-bridge/mcp-clients/
+- API coverage: https://mnbro.github.io/listmonk-mcp-bridge/api-coverage/
+- Safeguards: https://mnbro.github.io/listmonk-mcp-bridge/safeguards/
+
 ## What it does
 
 `listmonk-mcp-bridge` lets MCP clients work with the Listmonk API through typed tools for subscribers, lists, campaigns, templates, media, analytics, imports, bounces and transactional messages.
@@ -84,7 +91,7 @@ docker run --rm -i \
   ghcr.io/mnbro/listmonk-mcp-bridge:latest
 ```
 
-See the [container documentation](https://mnbro.github.io/listmonk-mcp-bridge/container/) for MCP client configuration.
+See the [Docker documentation](https://mnbro.github.io/listmonk-mcp-bridge/docker/) for MCP client configuration.
 
 ## Development
 
@@ -96,4 +103,4 @@ uv run python -m mypy src tests
 uv run mkdocs build --strict
 ```
 
-Full setup, tool behavior, client-specific configuration and security notes are in the documentation site.
+Full setup, tool behavior, API coverage, client-specific configuration and security notes are in the documentation site.

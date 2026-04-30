@@ -1,4 +1,4 @@
-# Container Image
+# Docker
 
 The project publishes a Debian slim based MCP server image to GitHub Container Registry:
 
