@@ -7,6 +7,7 @@ import pytest
 
 from listmonk_mcp import server
 from listmonk_mcp.client import ListmonkAPIError
+from listmonk_mcp.exceptions import ResourceNotFoundError
 
 
 class HelperClient:
@@ -87,6 +88,19 @@ class HelperClient:
                 "views": 10,
                 "clicks": 2,
             },
+            14: {
+                "id": 14,
+                "name": "Exact Aggregate Stats",
+                "subject": "Stats",
+                "body": "Stats",
+                "status": "sent",
+                "lists": [{"id": 1, "name": "Main"}],
+                "views": 1,
+                "clicks": 0,
+                "bounces": 0,
+                "sent": 0,
+                "to_send": 0,
+            },
         }
 
     async def get_subscribers(self, **kwargs: Any) -> dict[str, Any]:
@@ -161,7 +175,9 @@ class HelperClient:
         from_date: str | None = None,
         to_date: str | None = None,
     ) -> dict[str, Any]:
-        if campaign_id in {12, 13}:
+        if campaign_id == 13:
+            raise ResourceNotFoundError("Resource not found")
+        if campaign_id in {12, 14}:
             raise ListmonkAPIError("not found", status_code=404)
         del campaign_id, from_date, to_date
         if type == "views":
@@ -390,6 +406,8 @@ async def test_safe_test_campaign_blocks_and_sends(helper_client: HelperClient) 
         campaignId=10,
         testRecipients=["test@example.com"],
     )
+    assert helper_client.test_sends == []
+
     sent = await server.safe_test_campaign(
         campaignId=10,
         testRecipients=["test@example.com"],
@@ -496,6 +514,24 @@ async def test_campaign_performance_summary_uses_campaign_field_fallback(
     assert summary["warnings"] == [
         "Detailed analytics endpoint unavailable; using aggregate campaign fields."
     ]
+
+
+@pytest.mark.asyncio
+async def test_campaign_performance_summary_uses_exact_campaign_field_fallback(
+    helper_client: HelperClient,
+) -> None:
+    summary = await server.campaign_performance_summary(campaignId=14)
+
+    assert summary["views"] == 1
+    assert summary["clicks"] == 0
+    assert summary["bounces"] == 0
+    assert summary["sent"] == 0
+    assert summary["toSend"] == 0
+    assert summary["analyticsSource"] == "campaign_fields"
+    assert (
+        "Detailed analytics endpoint unavailable; using aggregate campaign fields."
+        in summary["warnings"]
+    )
 
 
 @pytest.mark.asyncio

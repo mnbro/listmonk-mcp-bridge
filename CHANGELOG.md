@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.12
+
+- Add LLM-agent tool recommendations and clarify low-level tools to avoid for autonomous agents.
+- Require confirmation for low-level campaign scheduling.
+- Add regression coverage for missing detailed analytics and live helper smoke tests gated by environment flags.
+
 ## 0.4.11
 
 - Return structured unsupported event metadata when detailed engagement analytics endpoints return 404.

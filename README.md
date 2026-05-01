@@ -52,6 +52,44 @@ Recommended helper tools for agents:
 - `export_campaign_postmortem_markdown`
 - `export_subscriber_communication_summary`
 
+## Recommended tools for LLM agents / orchestrators
+
+Recommended:
+
+- `audience_summary`
+- `personalization_fields_report`
+- `validate_message_personalization`
+- `campaign_risk_check`
+- `safe_test_campaign`
+- `safe_send_campaign`
+- `safe_schedule_campaign`
+- `safe_send_transactional_email`
+- `campaign_performance_summary`
+- `export_campaign_markdown`
+- `export_campaign_postmortem_markdown`
+- `export_engagement_events`
+- `get_subscriber_context`
+- `upsert_subscriber_profiles` with `dryRun=true` before any non-dry-run execution
+
+Avoid direct use by LLM agents unless explicitly needed:
+
+- `send_campaign`
+- `test_campaign`
+- `schedule_campaign`
+- `send_transactional_email`
+- `update_subscriber`
+- `delete_campaign`
+- `delete_subscribers*`
+- `blocklist*`
+- `manage_subscriber_lists*`
+- `update_settings`
+- `reload_app`
+
+Reason: use the `safe_*` wrappers for confirmation, approval checks,
+idempotency, risk checks and audit logs. The low-level `schedule_campaign`
+tool now requires `confirm_send=true`, but `safe_schedule_campaign` remains the
+recommended entry point for agents.
+
 Example profile sync dry run:
 
 ```json

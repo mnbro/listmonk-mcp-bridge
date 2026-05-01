@@ -31,7 +31,7 @@ from .client import (
 )
 from .config import Config
 from .config import get_config as load_runtime_config
-from .exceptions import safe_execute_async
+from .exceptions import ResourceNotFoundError, safe_execute_async
 
 audit_logger = logging.getLogger("listmonk_mcp.audit")
 operations_logger = logging.getLogger("listmonk_mcp.operations")
@@ -1293,7 +1293,16 @@ async def safe_test_campaign(
 
 
 @mcp.tool(annotations=MUTATING)
-async def schedule_campaign(campaign_id: int, send_at: str) -> dict[str, Any]:
+async def schedule_campaign(
+    campaign_id: int, send_at: str, confirm_send: bool = False
+) -> dict[str, Any]:
+    if blocked := send_confirmation_required(
+        confirm_send,
+        "schedule campaign",
+        campaign_id=campaign_id,
+        send_at=send_at,
+    ):
+        return blocked
     return await _call(lambda: get_client().schedule_campaign(campaign_id, send_at))
 
 
@@ -2097,6 +2106,9 @@ async def campaign_performance_summary(
             unavailable.append(metric)
             if exc.status_code == 404:
                 analytics_not_found = True
+        except ResourceNotFoundError:
+            unavailable.append(metric)
+            analytics_not_found = True
         except Exception:  # noqa: BLE001
             unavailable.append(metric)
     if analytics_not_found:
@@ -2161,6 +2173,23 @@ async def campaign_performance_summary(
     }
 
 
+def _mark_detailed_analytics_unavailable(
+    event_type: str, unsupported: list[dict[str, str]], warnings: list[str]
+) -> None:
+    unsupported.append(
+        {
+            "eventType": event_type,
+            "reason": "Detailed analytics endpoint unavailable; event-level data is not available for this campaign.",
+        }
+    )
+    warning = (
+        "Listmonk returned 404 for detailed analytics; use "
+        "campaign_performance_summary for aggregate metrics."
+    )
+    if warning not in warnings:
+        warnings.append(warning)
+
+
 @mcp.tool(annotations=READ_ONLY)
 async def export_engagement_events(
     campaignId: int,
@@ -2190,20 +2219,9 @@ async def export_engagement_events(
                     campaignId, metric, fromDate, toDate
                 )
             )
-        except ListmonkAPIError as exc:
-            if exc.status_code == 404:
-                unsupported.append(
-                    {
-                        "eventType": event_type,
-                        "reason": "Detailed analytics endpoint unavailable; event-level data is not available for this campaign.",
-                    }
-                )
-                warning = (
-                    "Listmonk returned 404 for detailed analytics; use "
-                    "campaign_performance_summary for aggregate metrics."
-                )
-                if warning not in warnings:
-                    warnings.append(warning)
+        except (ListmonkAPIError, ResourceNotFoundError) as exc:
+            if isinstance(exc, ResourceNotFoundError) or exc.status_code == 404:
+                _mark_detailed_analytics_unavailable(event_type, unsupported, warnings)
                 continue
             raise
         if not isinstance(analytics, list):

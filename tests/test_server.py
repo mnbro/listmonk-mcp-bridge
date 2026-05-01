@@ -273,6 +273,7 @@ async def test_email_sending_tools_are_marked_side_effecting_and_require_confirm
     email_tools = {
         "send_subscriber_optin",
         "send_campaign",
+        "schedule_campaign",
         "test_campaign",
         "send_transactional_email",
     }
@@ -301,6 +302,14 @@ async def test_email_sending_tools_are_marked_side_effecting_and_require_confirm
     assert result["error"]["error_type"] == "SendConfirmationRequired"
     assert result["error"]["confirm_required"] is True
 
+    result = await server.schedule_campaign(
+        campaign_id=7, send_at="2026-05-01T09:00:00Z"
+    )
+
+    assert result["success"] is False
+    assert result["error"]["error_type"] == "SendConfirmationRequired"
+    assert result["error"]["confirm_required"] is True
+
     result = await server.safe_test_campaign(
         campaignId=7, testRecipients=["test@example.com"]
     )
@@ -316,6 +325,10 @@ async def test_email_sending_tools_are_marked_side_effecting_and_require_confirm
     [
         (server.send_subscriber_optin, {"subscriber_id": 1}),
         (server.send_campaign, {"campaign_id": 1}),
+        (
+            server.schedule_campaign,
+            {"campaign_id": 1, "send_at": "2026-05-01T09:00:00Z"},
+        ),
         (server.test_campaign, {"campaign_id": 1, "subscribers": ["test@example.com"]}),
         (
             server.send_transactional_email,
