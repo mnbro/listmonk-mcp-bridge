@@ -61,11 +61,20 @@ class FakeListmonkClient:
 
 
 class FakeSideEffectClient:
+    def __init__(self) -> None:
+        self.scheduled_campaigns: list[dict[str, Any]] = []
+
     async def delete_campaign(self, campaign_id: int) -> dict[str, Any]:
         return {"data": {"id": campaign_id}}
 
     async def send_campaign(self, campaign_id: int) -> dict[str, Any]:
         return {"data": {"id": campaign_id}}
+
+    async def schedule_campaign(self, campaign_id: int, send_at: str) -> dict[str, Any]:
+        self.scheduled_campaigns.append(
+            {"campaign_id": campaign_id, "send_at": send_at}
+        )
+        return {"data": {"id": campaign_id, "send_at": send_at}}
 
     async def send_transactional_email(self, **kwargs: Any) -> dict[str, Any]:
         return {"data": kwargs}
@@ -344,6 +353,22 @@ async def test_all_email_guardrails_block_without_confirm_send(
     assert result["success"] is False
     assert result["error"]["error_type"] == "SendConfirmationRequired"
     assert result["error"]["confirm_required"] is True
+
+
+@pytest.mark.asyncio
+async def test_schedule_campaign_does_not_call_client_without_confirm(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_client = FakeSideEffectClient()
+    monkeypatch.setattr(server, "get_client", lambda: fake_client)
+
+    result = await server.schedule_campaign(
+        campaign_id=1, send_at="2026-05-01T09:00:00Z"
+    )
+
+    assert result["success"] is False
+    assert result["error"]["error_type"] == "SendConfirmationRequired"
+    assert fake_client.scheduled_campaigns == []
 
 
 @pytest.mark.asyncio

@@ -438,6 +438,12 @@ async def test_safe_schedule_campaign_blocks_and_schedules(
     blocked = await server.safe_schedule_campaign(
         campaignId=10, sendAt="2026-05-01T09:00:00Z"
     )
+    rejected = await server.safe_schedule_campaign(
+        campaignId=10,
+        sendAt="2026-05-01T09:00:00Z",
+        confirmSchedule=True,
+        approval={"required": True, "status": "rejected"},
+    )
     scheduled = await server.safe_schedule_campaign(
         campaignId=10,
         sendAt="2026-05-01T09:00:00Z",
@@ -446,6 +452,11 @@ async def test_safe_schedule_campaign_blocks_and_schedules(
     )
 
     assert blocked["success"] is False
+    assert blocked["error"]["error_type"] == "ScheduleConfirmationRequired"
+    assert rejected["success"] is False
+    assert rejected["blockers"] == [
+        "Approval is required but approval.status is not approved"
+    ]
     assert scheduled["scheduled"] is True
     assert helper_client.scheduled_campaigns == [
         {"campaign_id": 10, "send_at": "2026-05-01T09:00:00Z"}

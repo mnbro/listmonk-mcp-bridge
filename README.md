@@ -11,7 +11,7 @@
 [![GitHub release](https://img.shields.io/github/v/release/mnbro/listmonk-mcp-bridge)](https://github.com/mnbro/listmonk-mcp-bridge/releases)
 [![Downloads](https://img.shields.io/pypi/dm/listmonk-mcp-bridge.svg)](https://pypistats.org/packages/listmonk-mcp-bridge)
 
-MCP server for [Listmonk](https://listmonk.app/) newsletter operations.
+Connect [Listmonk](https://listmonk.app/) to AI agents so they can safely manage email lists, subscribers, campaigns, test sends, transactional emails, and performance reports.
 
 Documentation: https://mnbro.github.io/listmonk-mcp-bridge/
 
@@ -28,34 +28,16 @@ Documentation: https://mnbro.github.io/listmonk-mcp-bridge/
 
 It includes runtime confirmations for destructive actions, real email sends and sensitive reads.
 
-## LLM-friendly helper tools
-
-This MCP remains a generic Listmonk domain MCP. It does not orchestrate external systems, call other MCP servers, or hardcode external workflows.
-
-The helper tools are built on top of the existing Listmonk API wrappers. They give LLM agents safer primitives for subscriber profile sync, audience inspection, personalization validation, campaign risk checks, guarded sends, generic exports and audit logs.
-
-Recommended helper tools for agents:
-
-- `upsert_subscriber_profiles`
-- `get_subscriber_context`
-- `audience_summary`
-- `personalization_fields_report`
-- `validate_message_personalization`
-- `campaign_risk_check`
-- `safe_test_campaign`
-- `safe_send_campaign`
-- `safe_schedule_campaign`
-- `safe_send_transactional_email`
-- `campaign_performance_summary`
-- `export_engagement_events`
-- `export_campaign_markdown`
-- `export_campaign_postmortem_markdown`
-- `export_subscriber_communication_summary`
-
 ## Recommended tools for LLM agents / orchestrators
 
-Recommended:
+This MCP remains a generic Listmonk domain MCP. It does not orchestrate external systems, call other MCP servers, or hardcode external workflows. For full tool behavior and schemas, use the [tool documentation](https://mnbro.github.io/listmonk-mcp-bridge/tools/) and [safeguards documentation](https://mnbro.github.io/listmonk-mcp-bridge/safeguards/).
 
+Recommended for autonomous LLM/orchestrator use:
+
+- `check_listmonk_health`
+- `get_mailing_lists`
+- `get_list_subscribers_tool`
+- `get_subscriber_context`
 - `audience_summary`
 - `personalization_fields_report`
 - `validate_message_personalization`
@@ -68,157 +50,77 @@ Recommended:
 - `export_campaign_markdown`
 - `export_campaign_postmortem_markdown`
 - `export_engagement_events`
-- `get_subscriber_context`
+- `export_subscriber_communication_summary`
 - `upsert_subscriber_profiles` with `dryRun=true` before any non-dry-run execution
 
-Avoid direct use by LLM agents unless explicitly needed:
+These tools are LLM-friendly because they return compact summaries, warnings and blockers; use guardrails for confirmations, risk checks, approvals and idempotency where relevant; avoid accidental sends; and are suitable building blocks for external business orchestrators.
+
+Supervised / low-level only:
 
 - `send_campaign`
 - `test_campaign`
 - `schedule_campaign`
 - `send_transactional_email`
+- `add_subscriber`
 - `update_subscriber`
-- `delete_campaign`
-- `delete_subscribers*`
-- `blocklist*`
-- `manage_subscriber_lists*`
+- `change_subscriber_status`
+- `manage_subscriber_lists`
+- `manage_subscriber_lists_by_query`
+- `delete_subscribers_by_query`
+- `blocklist_subscriber`
+- `blocklist_subscribers`
+- `blocklist_subscribers_by_query`
+- `remove_subscriber`
+- `remove_subscribers`
+- `create_campaign`
+- `update_campaign`
+- `update_campaign_status`
+- `archive_campaign`
+- `convert_campaign_content`
+- `replace_in_campaign_body`
+- `regex_replace_in_campaign_body`
+- `batch_replace_in_campaign_body`
+- `create_template`
+- `update_template`
+- `delete_template`
+- `set_default_template`
+- `create_mailing_list`
+- `update_mailing_list`
+- `delete_mailing_list`
+- `delete_mailing_lists`
+- `import_subscribers`
+- `upload_media_file`
+- `rename_media`
+- `delete_media_file`
 - `update_settings`
 - `reload_app`
 
-Reason: use the `safe_*` wrappers for confirmation, approval checks,
-idempotency, risk checks and audit logs. The low-level `schedule_campaign`
-tool now requires `confirm_send=true`, but `safe_schedule_campaign` remains the
-recommended entry point for agents.
+Some low-level tools have confirmation guards, but they are still closer to the raw Listmonk API. Prefer `safe_*` wrappers for LLM workflows. For content changes, preview and risk-check before mutating operations.
 
-Example profile sync dry run:
+## Recommended workflows
 
-```json
-{
-  "profiles": [
-    {
-      "externalId": "abc-123",
-      "source": "external-system",
-      "email": "jane@example.com",
-      "name": "Jane Doe",
-      "attributes": {
-        "birthday": "1990-05-10",
-        "customer_type": "vip"
-      },
-      "tags": ["vip"],
-      "listIds": [1, 2],
-      "status": "enabled"
-    }
-  ],
-  "dryRun": true
-}
-```
+Campaign flow: `check_listmonk_health` -> `audience_summary` -> `personalization_fields_report` -> `validate_message_personalization` -> `campaign_risk_check` -> `get_campaign_html_preview` or `export_campaign_markdown` -> `safe_test_campaign` -> external approval if required -> `safe_schedule_campaign` or `safe_send_campaign` -> `campaign_performance_summary` -> `export_campaign_postmortem_markdown`.
 
-`upsert_subscriber_profiles` looks up existing subscribers by email before planning or
-applying changes. In the current implementation that lookup uses Listmonk's subscriber
-SQL query capability, so the MCP API key needs the `subscribers:sql_query` permission.
-Without it, dry runs and upserts can return a Listmonk permission error.
+Do not use `send_campaign` directly in an orchestrator. Do not use `schedule_campaign` directly unless there is an explicit low-level reason. Prefer `safe_test_campaign` before `safe_send_campaign`; when `safe_send_campaign` uses `requireTestSend=true`, provide `testRecipients`.
 
-Example personalization and send checks:
+Transactional email flow: `get_subscriber_context` -> `validate_message_personalization` if subject/body are generated -> `safe_send_transactional_email` with `confirmSend=false` for a safety check -> `safe_send_transactional_email` with `confirmSend=true` only after an explicit decision. Use an `idempotencyKey` for recurring events, for example `birthday-email:{subscriberId}:{year}`.
 
-```json
-{
-  "email": "jane@example.com"
-}
-```
+Transactional `data` accepts `object | null` and may contain nested JSON. Some connector renderers show only example fields such as `name` and `customMessage`, but the schema keeps `additionalProperties=true`, so arbitrary template variables are allowed.
 
-```json
-{
-  "listIds": [1, 2],
-  "filters": {}
-}
-```
+Subscriber sync flow: `get_subscriber_context` by email -> `upsert_subscriber_profiles` with `dryRun=true` -> inspect `plannedCreated`, `plannedUpdated` and `errors` -> run `upsert_subscriber_profiles` with `dryRun=false` only after external confirmation.
 
-```json
-{
-  "subject": "Hello {{name}}",
-  "body": "We have an update for {{customer_type}} subscribers.",
-  "listIds": [1],
-  "sampleSubscriberIds": [123, 456]
-}
-```
+`upsert_subscriber_profiles` looks up subscribers by email. It needs the relevant Listmonk subscriber permissions, including `subscribers:sql_query` if SQL lookup is used. Email literals are quoted safely, including apostrophes. In production, use `dryRun=true` before any write.
 
-```json
-{
-  "campaignId": 123,
-  "requireTestSend": true,
-  "maxAudienceSize": 5000
-}
-```
+## Production safety model
 
-```json
-{
-  "campaignId": 123,
-  "testRecipients": ["test@example.com"],
-  "confirmSend": true
-}
-```
-
-```json
-{
-  "campaignId": 123,
-  "confirmSend": true,
-  "approval": {
-    "required": true,
-    "status": "approved",
-    "approvalId": "approval-123"
-  },
-  "requireTestSend": true,
-  "testRecipients": ["test@example.com"]
-}
-```
-
-```json
-{
-  "templateId": 10,
-  "recipientEmail": "jane@example.com",
-  "subject": "A message for Jane",
-  "data": {
-    "name": "Jane",
-    "customMessage": "Happy birthday"
-  },
-  "contentType": "html",
-  "confirmSend": true,
-  "idempotencyKey": "unique-event-key-123"
-}
-```
-
-Example generic exports:
-
-```json
-{
-  "campaignId": 123,
-  "fromDate": "2026-04-01",
-  "toDate": "2026-04-30"
-}
-```
-
-```json
-{
-  "campaignId": 123,
-  "eventTypes": ["email_viewed", "email_clicked"]
-}
-```
-
-```json
-{
-  "campaignId": 123,
-  "includeBody": true,
-  "includeStats": true
-}
-```
-
-```json
-{
-  "subscriberId": 123,
-  "fromDate": "2026-01-01",
-  "toDate": "2026-04-30"
-}
-```
+- Sensitive read tools require `confirm_read`.
+- Send tools require `confirm_send`.
+- Destructive tools require `confirm`.
+- Scheduling tools require `confirm_send` or `confirmSchedule`.
+- `safe_*` wrappers are preferred for LLM agents.
+- Approval metadata can block send/schedule even when confirmation is true.
+- `idempotencyKey` prevents duplicate transactional email sends.
+- Safe confirmed operations return an `auditId`.
 
 ## License
 
