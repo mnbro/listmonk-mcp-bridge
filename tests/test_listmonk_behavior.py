@@ -1,8 +1,13 @@
 import inspect
+import os
 from typing import Any
 
 import pytest
 from pydantic import ValidationError
+
+os.environ.setdefault("LISTMONK_MCP_MODE", "full")
+os.environ.setdefault("LISTMONK_MCP_READ_ONLY", "false")
+os.environ.setdefault("LISTMONK_MCP_AUDIT_ENABLED", "false")
 
 from listmonk_mcp import server
 from listmonk_mcp.client import ListmonkClient, normalize_body

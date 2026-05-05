@@ -3,7 +3,7 @@ site_description: MCP server for Listmonk newsletter management
 site_author: mnbro
 site_url: https://mnbro.github.io/listmonk-mcp-bridge/
 repo_url: https://github.com/mnbro/listmonk-mcp-bridge
-repo_name: v0.4.12
+repo_name: v0.4.14
 
 theme:
   name: material
@@ -26,6 +26,8 @@ nav:
   - MCP Clients: mcp-clients.md
   - API Coverage: api-coverage.md
   - Safeguards: safeguards.md
+  - Authentication: authentication.md
+  - Listmonk API: listmonk-api.md
   - Claude Desktop: claude-desktop.md
   - VS Code: vscode.md
   - Cline: cline.md

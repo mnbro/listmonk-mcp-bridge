@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any
 
 import pytest
+
+os.environ.setdefault("LISTMONK_MCP_MODE", "full")
+os.environ.setdefault("LISTMONK_MCP_READ_ONLY", "false")
+os.environ.setdefault("LISTMONK_MCP_AUDIT_ENABLED", "false")
 
 from listmonk_mcp import server
 from listmonk_mcp.client import ListmonkAPIError
@@ -553,6 +558,7 @@ async def test_export_engagement_events_handles_missing_detailed_analytics(
         campaignId=13, eventTypes=["email_viewed", "email_clicked"]
     )
 
+    assert result["untrustedDataNotice"]
     assert result == {
         "success": True,
         "supported": False,
@@ -570,6 +576,7 @@ async def test_export_engagement_events_handles_missing_detailed_analytics(
         "warnings": [
             "Listmonk returned 404 for detailed analytics; use campaign_performance_summary for aggregate metrics."
         ],
+        "untrustedDataNotice": server.UNTRUSTED_DATA_NOTICE,
     }
 
 

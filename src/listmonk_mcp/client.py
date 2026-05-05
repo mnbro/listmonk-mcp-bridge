@@ -163,6 +163,7 @@ class ListmonkClient:
         retry_count: int = 0,
     ) -> dict[str, Any]:
         client = await self._get_client()
+        safe_to_retry = method.upper() in {"GET", "HEAD", "OPTIONS"}
         try:
             response = await client.request(
                 method,
@@ -171,7 +172,7 @@ class ListmonkClient:
                 json=json_data,
             )
         except httpx.RequestError as exc:
-            if retry_count < self.config.max_retries:
+            if safe_to_retry and retry_count < self.config.max_retries:
                 await asyncio.sleep(min(2**retry_count, 8))
                 return await self._request(
                     method, endpoint, params, json_data, retry_count + 1
