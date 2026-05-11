@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.13](https://github.com/mnbro/listmonk-mcp-bridge/compare/v0.4.12...v0.4.13) (2026-05-11)
+
+
+### Bug Fixes
+
+* **deps:** bump urllib3 in the python-security group across 1 directory ([#31](https://github.com/mnbro/listmonk-mcp-bridge/issues/31)) ([620a46e](https://github.com/mnbro/listmonk-mcp-bridge/commit/620a46e1217c40a9627851825c59b9b6273b38fa))
+
 ## 0.4.12
 
 - Add LLM-agent tool recommendations and clarify low-level tools to avoid for autonomous agents.
