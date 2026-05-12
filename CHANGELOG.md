@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.16](https://github.com/mnbro/listmonk-mcp-bridge/compare/v0.4.15...v0.4.16) (2026-05-12)
+
+
+### Bug Fixes
+
+* **deps:** bump GitPython to 3.1.50 ([fb017c2](https://github.com/mnbro/listmonk-mcp-bridge/commit/fb017c2966be4d513585b4115d553e801a73c2b7))
+
 ## [0.4.15](https://github.com/mnbro/listmonk-mcp-bridge/compare/v0.4.14...v0.4.15) (2026-05-12)
 
 
