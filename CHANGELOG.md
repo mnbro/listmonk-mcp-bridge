@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.18](https://github.com/mnbro/listmonk-mcp-bridge/compare/v0.4.17...v0.4.18) (2026-06-04)
+
+
+### Bug Fixes
+
+* **deps:** bump starlette ([#37](https://github.com/mnbro/listmonk-mcp-bridge/issues/37)) ([a3db0c4](https://github.com/mnbro/listmonk-mcp-bridge/commit/a3db0c4b85257ee85b0bc1f0d17142918fe512be))
+
 ## [0.4.17](https://github.com/mnbro/listmonk-mcp-bridge/compare/v0.4.16...v0.4.17) (2026-05-19)
 
 
