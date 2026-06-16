@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.19](https://github.com/mnbro/listmonk-mcp-bridge/compare/v0.4.18...v0.4.19) (2026-06-16)
+
+
+### Bug Fixes
+
+* **deps:** bump pyjwt in the python-security group across 1 directory ([#39](https://github.com/mnbro/listmonk-mcp-bridge/issues/39)) ([d9c162d](https://github.com/mnbro/listmonk-mcp-bridge/commit/d9c162da1318d575ecb67409b9542a4f3401816d))
+
 ## [0.4.18](https://github.com/mnbro/listmonk-mcp-bridge/compare/v0.4.17...v0.4.18) (2026-06-04)
 
 
