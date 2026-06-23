@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.21](https://github.com/mnbro/listmonk-mcp-bridge/compare/v0.4.20...v0.4.21) (2026-06-23)
+
+
+### Bug Fixes
+
+* **deps:** bump pydantic-settings ([#43](https://github.com/mnbro/listmonk-mcp-bridge/issues/43)) ([8c6b739](https://github.com/mnbro/listmonk-mcp-bridge/commit/8c6b7393a3069e851bbe7cb399200a626d2b4826))
+
 ## [0.4.20](https://github.com/mnbro/listmonk-mcp-bridge/compare/v0.4.19...v0.4.20) (2026-06-16)
 
 
