@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.22](https://github.com/mnbro/listmonk-mcp-bridge/compare/v0.4.21...v0.4.22) (2026-07-16)
+
+
+### Bug Fixes
+
+* **deps:** bump mcp in the python-security group across 1 directory ([#45](https://github.com/mnbro/listmonk-mcp-bridge/issues/45)) ([6db2293](https://github.com/mnbro/listmonk-mcp-bridge/commit/6db229354fa3fe39c0531616cef323786b7923ae))
+
 ## [0.4.21](https://github.com/mnbro/listmonk-mcp-bridge/compare/v0.4.20...v0.4.21) (2026-06-23)
 
 
