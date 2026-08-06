@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.24](https://github.com/mnbro/listmonk-mcp-bridge/compare/v0.4.23...v0.4.24) (2026-08-06)
+
+
+### Bug Fixes
+
+* **deps:** bump cryptography ([#49](https://github.com/mnbro/listmonk-mcp-bridge/issues/49)) ([730cbae](https://github.com/mnbro/listmonk-mcp-bridge/commit/730cbae8d56a2efd7d6b58c74778fdab59990f6c))
+
 ## [0.4.23](https://github.com/mnbro/listmonk-mcp-bridge/compare/v0.4.22...v0.4.23) (2026-07-28)
 
 
