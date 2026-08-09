@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.25](https://github.com/mnbro/listmonk-mcp-bridge/compare/v0.4.24...v0.4.25) (2026-08-09)
+
+
+### Bug Fixes
+
+* **deps:** bump pymdown-extensions ([#51](https://github.com/mnbro/listmonk-mcp-bridge/issues/51)) ([827dbc9](https://github.com/mnbro/listmonk-mcp-bridge/commit/827dbc9117ec2ff094598503f185b3573b234735))
+
 ## [0.4.24](https://github.com/mnbro/listmonk-mcp-bridge/compare/v0.4.23...v0.4.24) (2026-08-06)
 
 
