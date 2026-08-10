@@ -1,0 +1,39 @@
+name: Published Package Canary
+
+on:
+  schedule:
+    - cron: "17 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: published-package-canary
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: smoke (${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Smoke-test latest published package
+        env:
+          PYTHONWARNINGS: error
+          UV_CACHE_DIR: ${{ runner.temp }}/uv-cache
+          UV_TOOL_DIR: ${{ runner.temp }}/uv-tools
+        run: uvx --refresh --from listmonk-mcp-bridge listmonk-mcp-bridge --version
