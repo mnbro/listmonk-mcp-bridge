@@ -353,6 +353,29 @@ async def test_added_swagger_endpoint_methods_use_expected_paths() -> None:
 
 
 @pytest.mark.asyncio
+async def test_campaign_status_methods_use_put() -> None:
+    client = RecordingClient()
+
+    await client.send_campaign(7)
+    assert last_request(client)["method"] == "PUT"
+    assert last_request(client)["endpoint"] == "/api/campaigns/7/status"
+    assert last_payload(client) == {"status": "running"}
+
+    await client.schedule_campaign(8, "2026-08-11T09:00:00Z")
+    assert last_request(client)["method"] == "PUT"
+    assert last_request(client)["endpoint"] == "/api/campaigns/8/status"
+    assert last_payload(client) == {
+        "status": "scheduled",
+        "send_at": "2026-08-11T09:00:00Z",
+    }
+
+    await client.update_campaign_status(9, "paused")
+    assert last_request(client)["method"] == "PUT"
+    assert last_request(client)["endpoint"] == "/api/campaigns/9/status"
+    assert last_payload(client) == {"status": "paused"}
+
+
+@pytest.mark.asyncio
 async def test_transactional_email_supports_multiple_recipient_modes() -> None:
     client = RecordingClient()
 

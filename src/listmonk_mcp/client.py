@@ -684,14 +684,14 @@ class ListmonkClient:
 
     async def send_campaign(self, campaign_id: int) -> dict[str, Any]:
         return await self._request(
-            "POST",
+            "PUT",
             f"/api/campaigns/{campaign_id}/status",
             json_data={"status": "running"},
         )
 
     async def schedule_campaign(self, campaign_id: int, send_at: str) -> dict[str, Any]:
         return await self._request(
-            "POST",
+            "PUT",
             f"/api/campaigns/{campaign_id}/status",
             json_data={"status": "scheduled", "send_at": send_at},
         )
@@ -700,7 +700,7 @@ class ListmonkClient:
         self, campaign_id: int, status: str
     ) -> dict[str, Any]:
         return await self._request(
-            "POST", f"/api/campaigns/{campaign_id}/status", json_data={"status": status}
+            "PUT", f"/api/campaigns/{campaign_id}/status", json_data={"status": status}
         )
 
     async def get_campaign_preview(self, campaign_id: int) -> dict[str, Any]:
