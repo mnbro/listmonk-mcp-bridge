@@ -21,6 +21,7 @@ from uuid import uuid4
 
 import typer
 from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp.server import Settings as _FastMCPSettings
 from mcp.types import ToolAnnotations
 from pydantic import Field, WithJsonSchema
 
@@ -38,6 +39,11 @@ from .exceptions import ResourceNotFoundError, safe_execute_async
 audit_logger = logging.getLogger("listmonk_mcp.audit")
 operations_logger = logging.getLogger("listmonk_mcp.operations")
 logger = logging.getLogger(__name__)
+
+# MCP v1 defines Settings before FastMCP, leaving its lifespan annotation
+# unresolved. Rebuild after the SDK module finishes importing so
+# pydantic-settings can inspect every field safely.
+_FastMCPSettings.model_rebuild()
 
 READ_ONLY = ToolAnnotations(
     readOnlyHint=True,

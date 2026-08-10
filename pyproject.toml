@@ -22,11 +22,12 @@ classifiers = [
 ]
 
 dependencies = [
+    # Major upgrades require an explicit compatibility PR and clean-wheel validation.
     "mcp>=1.27,<2",
-    "httpx>=0.24.0",
-    "pydantic[email]>=2.0.0",
-    "pydantic-settings>=2.0.0",
-    "typer>=0.9.0",
+    "httpx>=0.24,<1",
+    "pydantic[email]>=2,<3",
+    "pydantic-settings>=2,<3",
+    "typer>=0.9,<1",
 ]
 
 [project.optional-dependencies]

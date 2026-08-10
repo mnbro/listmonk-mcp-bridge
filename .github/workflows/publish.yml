@@ -48,7 +48,9 @@ jobs:
       run: uv build
 
     - name: Verify packaged console entry point
-      run: uv run --isolated --no-project --with ./dist/*.whl listmonk-mcp-bridge --version
+      env:
+        PYTHONWARNINGS: error
+      run: uv run --isolated --no-project --refresh --with ./dist/*.whl listmonk-mcp-bridge --version
       
     - name: Publish to PyPI with API token
       if: env.PYPI_API_TOKEN != ''
