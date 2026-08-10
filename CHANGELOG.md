@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.29](https://github.com/mnbro/listmonk-mcp-bridge/compare/v0.4.28...v0.4.29) (2026-08-10)
+
+
+### Bug Fixes
+
+* constrain MCP SDK to v1 ([#56](https://github.com/mnbro/listmonk-mcp-bridge/issues/56)) ([6374508](https://github.com/mnbro/listmonk-mcp-bridge/commit/6374508ca0e6e13a13559ff6a28870cce7ffec70))
+
 ## [0.4.28](https://github.com/mnbro/listmonk-mcp-bridge/compare/v0.4.27...v0.4.28) (2026-08-10)
 
 
