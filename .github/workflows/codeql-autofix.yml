@@ -1,0 +1,60 @@
+name: CodeQL Autofix
+
+on:
+  workflow_run:
+    workflows: [CodeQL]
+    types: [completed]
+  schedule:
+    - cron: "17 7 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+concurrency:
+  group: codeql-autofix
+  cancel-in-progress: false
+
+jobs:
+  assign-alerts:
+    if: >-
+      github.event_name != 'workflow_run' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Assign new security alerts to Copilot
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mapfile -t alerts < <(
+            gh api --paginate \
+              "repos/${REPOSITORY}/code-scanning/alerts?state=open&per_page=100" \
+              --jq '.[] |
+                select(.tool.name == "CodeQL") |
+                select(
+                  .rule.security_severity_level == "medium" or
+                  .rule.security_severity_level == "high" or
+                  .rule.security_severity_level == "critical"
+                ) |
+                select((.assignees // []) | length == 0) |
+                .number'
+          )
+
+          if (( ${#alerts[@]} == 0 )); then
+            echo "No unassigned Medium-or-higher CodeQL alerts found."
+            exit 0
+          fi
+
+          for alert_number in "${alerts[@]}"; do
+            echo "Assigning CodeQL alert #${alert_number} to Copilot."
+            gh api --method PATCH \
+              "repos/${REPOSITORY}/code-scanning/alerts/${alert_number}" \
+              -f 'assignees[]=copilot-swe-agent[bot]' \
+              >/dev/null
+          done
