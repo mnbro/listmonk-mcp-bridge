@@ -53,5 +53,8 @@ jobs:
       - name: Build package
         run: uv build
 
-      - name: Check installed package compatibility
+      - name: Check development environment compatibility
         run: uv pip check
+
+      - name: Verify packaged console entry point
+        run: uv run --isolated --no-project --with ./dist/*.whl listmonk-mcp-bridge --version
