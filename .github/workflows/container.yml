@@ -24,6 +24,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
+      - name: Install uv for release PR
+        if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'release-please--')
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.9.30"
+          enable-cache: true
+
+      - name: Prepare lockfile for release PR
+        if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'release-please--')
+        run: uv lock --upgrade-package listmonk-mcp-bridge
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 

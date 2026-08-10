@@ -28,6 +28,10 @@ jobs:
         with:
           enable-cache: true
 
+      - name: Prepare lockfile for release PR
+        if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'release-please--')
+        run: uv lock --upgrade-package listmonk-mcp-bridge
+
       - name: Check lockfile freshness
         run: uv lock --check
 
