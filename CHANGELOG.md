@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.28](https://github.com/mnbro/listmonk-mcp-bridge/compare/v0.4.27...v0.4.28) (2026-08-10)
+
+
+### Documentation
+
+* add security policy ([127e67d](https://github.com/mnbro/listmonk-mcp-bridge/commit/127e67d04c00295e4664833a1e0a95283e618079))
+
 ## [0.4.27](https://github.com/mnbro/listmonk-mcp-bridge/compare/v0.4.26...v0.4.27) (2026-08-10)
 
 
