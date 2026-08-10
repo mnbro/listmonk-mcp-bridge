@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.30](https://github.com/mnbro/listmonk-mcp-bridge/compare/v0.4.29...v0.4.30) (2026-08-10)
+
+
+### Bug Fixes
+
+* harden dependency compatibility ([#58](https://github.com/mnbro/listmonk-mcp-bridge/issues/58)) ([7540bb1](https://github.com/mnbro/listmonk-mcp-bridge/commit/7540bb1f41bea2ebe4b1aebc48c3d12df4a87203))
+
 ## [0.4.29](https://github.com/mnbro/listmonk-mcp-bridge/compare/v0.4.28...v0.4.29) (2026-08-10)
 
 
