@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.26](https://github.com/mnbro/listmonk-mcp-bridge/compare/v0.4.25...v0.4.26) (2026-08-10)
+
+
+### Bug Fixes
+
+* prepare release lockfile before CI ([b22ce89](https://github.com/mnbro/listmonk-mcp-bridge/commit/b22ce899d5ebed273fc7466fa4cb24e0ce089acc))
+
 ## [0.4.25](https://github.com/mnbro/listmonk-mcp-bridge/compare/v0.4.24...v0.4.25) (2026-08-09)
 
 
