@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.32](https://github.com/mnbro/listmonk-mcp-bridge/compare/v0.4.31...v0.4.32) (2026-08-11)
+
+
+### Bug Fixes
+
+* use PUT for campaign status updates ([e983cce](https://github.com/mnbro/listmonk-mcp-bridge/commit/e983cce817f4424587cc013b3d0539377a8c32ff))
+
 ## [0.4.31](https://github.com/mnbro/listmonk-mcp-bridge/compare/v0.4.30...v0.4.31) (2026-08-11)
 
 
