@@ -76,7 +76,6 @@ Supervised / low-level only:
 - `update_campaign`
 - `update_campaign_status`
 - `archive_campaign`
-- `convert_campaign_content`
 - `replace_in_campaign_body`
 - `regex_replace_in_campaign_body`
 - `batch_replace_in_campaign_body`
@@ -90,7 +89,6 @@ Supervised / low-level only:
 - `delete_mailing_lists`
 - `import_subscribers`
 - `upload_media_file`
-- `rename_media`
 - `delete_media_file`
 - `update_settings`
 - `reload_app`

@@ -24,8 +24,8 @@ These tools compose existing Listmonk wrappers into safer primitives for LLM age
 | `safe_send_campaign` | send | Runs risk checks, validates optional approval evidence, optionally sends a test, requires `confirmSend=true`, then sends through the existing API wrapper and writes audit logs. |
 | `safe_schedule_campaign` | mutating | Runs risk checks, validates optional approval evidence, requires `confirmSchedule=true`, schedules through the existing API wrapper and writes audit logs. |
 | `safe_send_transactional_email` | send | Requires `confirmSend=true`, validates recipient input, supports `idempotencyKey`, sends through the existing transactional email wrapper and writes audit logs. |
-| `campaign_performance_summary` | read-only | Aggregates available analytics into a compact LLM-friendly summary. Marks unavailable metrics explicitly. |
-| `export_engagement_events` | read-only | Best-effort normalized event export. Returns `supported=false` for event types where Listmonk exposes only aggregate data. |
+| `campaign_performance_summary` | read-only | Sums Listmonk analytics time buckets into a compact summary and marks unavailable metrics explicitly. |
+| `export_engagement_events` | read-only | Reports `supported=false` because Listmonk exposes aggregate analytics buckets rather than subscriber-level event records. |
 | `export_campaign_markdown` | read-only | Generic campaign Markdown export with optional body and stats. |
 | `export_campaign_postmortem_markdown` | read-only | Generic postmortem Markdown based on `campaign_performance_summary`. |
 | `export_subscriber_communication_summary` | read-only | Generic subscriber communication summary with structured data and Markdown. |
@@ -76,7 +76,7 @@ dry runs and upserts can fail with a Listmonk permission error.
 
 | Tool | Class | Notes |
 | --- | --- | --- |
-| `get_bounces` | read-only | List bounces. |
+| `get_bounces` | read-only | List bounces; subscriber filtering uses Listmonk's subscriber-bounces endpoint and supports local campaign/source filtering. |
 | `get_bounce` | read-only | Get one bounce. |
 | `delete_bounce` | destructive | Requires `confirm=true`. |
 | `delete_bounces` | destructive | Bulk delete; requires `confirm=true`. |
@@ -108,14 +108,14 @@ dry runs and upserts can fail with a Listmonk permission error.
 
 | Tool | Class | Notes |
 | --- | --- | --- |
-| `get_campaigns` | read-only | List campaigns. |
+| `get_campaigns` | read-only | List campaigns with Listmonk's status, tag, query and no-body filters. |
 | `get_campaign` | read-only | Get one campaign. |
-| `create_campaign` | mutating | Create campaign; can auto-convert plain text to HTML. |
+| `create_campaign` | mutating | Create a draft campaign; can auto-convert plain text to HTML. Use `schedule_campaign` for future delivery. |
 | `update_campaign` | mutating | Update campaign. |
 | `send_campaign` | send | Requires `confirm_send=true`. |
 | `test_campaign` | send | Requires `confirm_send=true`; `subscribers` must be recipient email addresses. The client sends the current campaign payload plus those recipients to match Listmonk's test endpoint requirements. |
 | `safe_test_campaign` | send | Requires `confirmSend=true`; recommended wrapper for agents because it validates `testRecipients` and writes audit logs. |
-| `schedule_campaign` | mutating | Schedule send. |
+| `schedule_campaign` | mutating | Persists `send_at` on the campaign, then changes its status to `scheduled`. |
 | `update_campaign_status` | mutating | Change campaign status. |
 | `delete_campaign` | destructive | Requires `confirm=true`. |
 | `delete_campaigns` | destructive | Bulk delete; requires `confirm=true`. |
@@ -123,9 +123,9 @@ dry runs and upserts can fail with a Listmonk permission error.
 | `preview_campaign_body` | read-only | Preview supplied body. |
 | `preview_campaign_text` | read-only | Preview supplied text. |
 | `get_running_campaign_stats` | read-only | Running campaign stats. |
-| `get_campaign_analytics` | read-only | Campaign analytics. |
+| `get_campaign_analytics` | read-only | Aggregate views, clicks, bounces or links; defaults to the full available date range when dates are omitted. |
 | `archive_campaign` | mutating | Archive/unarchive campaign. |
-| `convert_campaign_content` | mutating | Convert editor/content representation. |
+| `convert_campaign_content` | read-only | Returns Listmonk's non-persistent content conversion; upstream supports Markdown to HTML/richtext conversion. |
 | `replace_in_campaign_body` | mutating | Replace text in campaign body. |
 | `regex_replace_in_campaign_body` | mutating | Regex replace in campaign body. |
 | `batch_replace_in_campaign_body` | mutating | Batch replace in campaign body. |
@@ -136,10 +136,10 @@ dry runs and upserts can fail with a Listmonk permission error.
 | --- | --- | --- |
 | `get_templates` | read-only | List templates. |
 | `get_template` | read-only | Get one template. |
-| `create_template` | mutating | Create campaign/visual/transactional template. |
+| `create_template` | mutating | Create campaign/visual/transactional template; default selection uses Listmonk's dedicated default endpoint. |
 | `update_template` | mutating | Update template. |
 | `delete_template` | destructive | Requires `confirm=true`. |
-| `preview_template` | read-only | Preview template with supplied body. |
+| `preview_template` | read-only | Preview a supplied body using the stored template type. |
 | `get_template_html_preview` | read-only | Read rendered template preview. |
 | `set_default_template` | mutating | Set default template. |
 | `send_transactional_email` | send | Requires `confirm_send=true`. |
@@ -148,10 +148,9 @@ dry runs and upserts can fail with a Listmonk permission error.
 
 | Tool | Class | Notes |
 | --- | --- | --- |
-| `get_media_list` | read-only | List media. |
+| `get_media_list` | read-only | List/search media with pagination. |
 | `get_media_file` | read-only | Get media metadata/file info. |
-| `upload_media_file` | mutating | Upload media. |
-| `rename_media` | mutating | Rename media. |
+| `upload_media_file` | mutating | Upload media; optional `title` becomes the stored multipart filename. |
 | `delete_media_file` | destructive | Requires `confirm=true`. |
 
 ## Maintenance
@@ -159,5 +158,5 @@ dry runs and upserts can fail with a Listmonk permission error.
 | Tool | Class | Notes |
 | --- | --- | --- |
 | `delete_gc_subscribers` | destructive | Requires `confirm=true`. |
-| `delete_campaign_analytics` | destructive | Requires `confirm=true`. |
-| `delete_unconfirmed_subscriptions` | destructive | Requires `confirm=true`. |
+| `delete_campaign_analytics` | destructive | Requires `confirm=true`; date-only cutoffs are expanded to RFC3339 for Listmonk. |
+| `delete_unconfirmed_subscriptions` | destructive | Requires `confirm=true`; date-only cutoffs are expanded to RFC3339 for Listmonk. |

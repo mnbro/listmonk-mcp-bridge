@@ -1,5 +1,6 @@
 import inspect
 import os
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -10,7 +11,7 @@ os.environ.setdefault("LISTMONK_MCP_READ_ONLY", "false")
 os.environ.setdefault("LISTMONK_MCP_AUDIT_ENABLED", "false")
 
 from listmonk_mcp import server
-from listmonk_mcp.client import ListmonkClient, normalize_body
+from listmonk_mcp.client import ListmonkAPIError, ListmonkClient, normalize_body
 from listmonk_mcp.config import Config
 from listmonk_mcp.models import (
     CampaignTypeEnum,
@@ -46,6 +47,7 @@ class RecordingClient(ListmonkClient):
                 "params": params,
                 "json_data": json_data,
                 "retry_count": retry_count,
+                "transport": "json",
             }
         )
         return {"data": {"id": 123, **(json_data or {})}}
@@ -63,9 +65,31 @@ class RecordingClient(ListmonkClient):
                 "params": None,
                 "json_data": data,
                 "retry_count": 0,
+                "transport": "form",
             }
         )
         return {"text": "<p>Preview</p>"}
+
+    async def _request_files(
+        self,
+        method: str,
+        endpoint: str,
+        *,
+        data: dict[str, Any],
+        files: dict[str, Any],
+    ) -> dict[str, Any]:
+        self.requests.append(
+            {
+                "method": method,
+                "endpoint": endpoint,
+                "params": None,
+                "json_data": data,
+                "files": {key: value[0] for key, value in files.items()},
+                "retry_count": 0,
+                "transport": "multipart",
+            }
+        )
+        return {"data": True}
 
 
 class CampaignRecordingClient(RecordingClient):
@@ -82,10 +106,50 @@ class CampaignRecordingClient(RecordingClient):
                 "type": "regular",
                 "from_email": "Sender <sender@example.com>",
                 "body": "<p>Hello</p>",
+                "altbody": "Hello",
                 "content_type": "html",
                 "template": {"id": 3},
                 "tags": ["test"],
                 "messenger": "email",
+                "headers": [{"X-Test": "1"}],
+                "attribs": {"segment": "test"},
+                "media": [{"id": 5, "filename": "hero.png"}],
+                "archive": True,
+                "archive_slug": "draft",
+                "archive_template_id": 4,
+                "archive_meta": {"utm": "source"},
+            }
+        }
+
+
+class ListRecordingClient(RecordingClient):
+    async def get_list(self, list_id: int) -> dict[str, Any]:
+        return {
+            "data": {
+                "id": list_id,
+                "name": "Existing list",
+                "type": "private",
+                "optin": "double",
+                "tags": ["customers"],
+                "description": "Existing description",
+            }
+        }
+
+
+class TemplateRecordingClient(RecordingClient):
+    async def get_template(
+        self, template_id: int, no_body: bool | None = None
+    ) -> dict[str, Any]:
+        del no_body
+        return {
+            "data": {
+                "id": template_id,
+                "name": "Existing template",
+                "subject": "Existing subject",
+                "body": "<p>Existing</p>",
+                "body_source": '{"rows":[]}',
+                "type": "tx",
+                "is_default": False,
             }
         }
 
@@ -185,8 +249,29 @@ async def test_create_template_payload_includes_subject_for_tx() -> None:
         "subject": "Receipt",
         "body": "<p>Hello</p>",
         "type": "tx",
-        "is_default": False,
     }
+
+
+@pytest.mark.asyncio
+async def test_create_template_sets_default_through_supported_endpoint() -> None:
+    client = RecordingClient()
+
+    await client.create_template(
+        name="Transactional",
+        subject="Receipt",
+        body="<p>Hello</p>",
+        type="tx",
+        is_default=True,
+    )
+
+    create_request, default_request, final_get = client.requests[-3:]
+    assert create_request["method"] == "POST"
+    assert create_request["endpoint"] == "/api/templates"
+    assert "is_default" not in create_request["json_data"]
+    assert default_request["method"] == "PUT"
+    assert default_request["endpoint"] == "/api/templates/123/default"
+    assert final_get["method"] == "GET"
+    assert final_get["endpoint"] == "/api/templates/123"
 
 
 @pytest.mark.asyncio
@@ -303,7 +388,7 @@ async def test_create_campaign_html_ignores_conversion_flag() -> None:
 
 
 @pytest.mark.asyncio
-async def test_create_campaign_sends_swagger_fields() -> None:
+async def test_create_campaign_sends_supported_handler_fields() -> None:
     client = RecordingClient()
 
     await client.create_campaign(
@@ -316,7 +401,6 @@ async def test_create_campaign_sends_swagger_fields() -> None:
         from_email="Sender <sender@example.com>",
         messenger="email",
         template_id=2,
-        send_later=True,
         send_at="2026-05-01T10:00:00Z",
         headers=[{"X-Test": "1"}],
     )
@@ -326,9 +410,32 @@ async def test_create_campaign_sends_swagger_fields() -> None:
     assert payload["from_email"] == "Sender <sender@example.com>"
     assert payload["messenger"] == "email"
     assert payload["template_id"] == 2
-    assert payload["send_later"] is True
     assert payload["send_at"] == "2026-05-01T10:00:00Z"
     assert payload["headers"] == [{"X-Test": "1"}]
+
+
+@pytest.mark.asyncio
+async def test_campaign_list_uses_filters_consumed_by_listmonk() -> None:
+    client = RecordingClient()
+
+    await client.get_campaigns(
+        status=["draft", "scheduled"],
+        tags=["newsletter"],
+        query="summer",
+        no_body=True,
+    )
+
+    assert last_request(client)["params"] == {
+        "page": 1,
+        "per_page": 20,
+        "order_by": "created_at",
+        "order": "desc",
+        "status": ["draft", "scheduled"],
+        "tag": ["newsletter"],
+        "query": "summer",
+        "no_body": True,
+    }
+    assert "type" not in last_request(client)["params"]
 
 
 @pytest.mark.asyncio
@@ -354,7 +461,7 @@ async def test_added_swagger_endpoint_methods_use_expected_paths() -> None:
 
 @pytest.mark.asyncio
 async def test_campaign_status_methods_use_put() -> None:
-    client = RecordingClient()
+    client = CampaignRecordingClient()
 
     await client.send_campaign(7)
     assert last_request(client)["method"] == "PUT"
@@ -362,12 +469,18 @@ async def test_campaign_status_methods_use_put() -> None:
     assert last_payload(client) == {"status": "running"}
 
     await client.schedule_campaign(8, "2026-08-11T09:00:00Z")
+    update_request, status_request = client.requests[-2:]
+    assert update_request["method"] == "PUT"
+    assert update_request["endpoint"] == "/api/campaigns/8"
+    assert update_request["json_data"]["send_at"] == "2026-08-11T09:00:00Z"
+    assert update_request["json_data"]["lists"] == [1]
+    assert update_request["json_data"]["media"] == [5]
+    assert status_request["method"] == "PUT"
+    assert status_request["endpoint"] == "/api/campaigns/8/status"
+    assert status_request["json_data"] == {"status": "scheduled"}
     assert last_request(client)["method"] == "PUT"
     assert last_request(client)["endpoint"] == "/api/campaigns/8/status"
-    assert last_payload(client) == {
-        "status": "scheduled",
-        "send_at": "2026-08-11T09:00:00Z",
-    }
+    assert last_payload(client) == {"status": "scheduled"}
 
     await client.update_campaign_status(9, "paused")
     assert last_request(client)["method"] == "PUT"
@@ -424,9 +537,11 @@ async def test_test_campaign_sends_campaign_payload_with_email_recipients() -> N
         "from_email": "Sender <sender@example.com>",
         "body": "<p>Hello</p>",
         "content_type": "html",
+        "altbody": "Hello",
         "template_id": 3,
         "tags": ["test"],
         "messenger": "email",
+        "headers": [{"X-Test": "1"}],
         "subscribers": ["hello@ediblelandscapecreators.org"],
     }
 
@@ -522,6 +637,7 @@ async def test_bulk_subscriber_and_bounce_methods_use_swagger_paths() -> None:
     assert last_request(client)["endpoint"] == "/api/subscribers/query/delete"
 
     await client.blocklist_subscribers_by_query("subscribers.status = 'disabled'")
+    assert last_request(client)["method"] == "PUT"
     assert last_request(client)["endpoint"] == "/api/subscribers/query/blocklist"
 
     await client.manage_subscriber_lists_by_query(
@@ -548,6 +664,7 @@ async def test_campaign_preview_bulk_public_and_maintenance_paths() -> None:
     await client.preview_campaign_body(3, "<p>Hello</p>", "html", template_id=4)
     assert last_request(client)["method"] == "POST"
     assert last_request(client)["endpoint"] == "/api/campaigns/3/preview"
+    assert last_request(client)["transport"] == "form"
     assert last_payload(client) == {
         "body": "<p>Hello</p>",
         "content_type": "html",
@@ -556,6 +673,7 @@ async def test_campaign_preview_bulk_public_and_maintenance_paths() -> None:
 
     await client.preview_campaign_text(3, "Hello", "plain")
     assert last_request(client)["endpoint"] == "/api/campaigns/3/text"
+    assert last_request(client)["transport"] == "form"
 
     await client.create_public_subscription(
         name="Ada",
@@ -576,13 +694,237 @@ async def test_campaign_preview_bulk_public_and_maintenance_paths() -> None:
 
     await client.delete_campaign_analytics("views", "2026-01-01")
     assert last_request(client)["endpoint"] == "/api/maintenance/analytics/views"
-    assert last_payload(client) == {"before_date": "2026-01-01"}
+    assert last_request(client)["transport"] == "form"
+    assert last_payload(client) == {"before_date": "2026-01-01T00:00:00Z"}
+
+
+@pytest.mark.asyncio
+async def test_list_subscribers_use_supported_subscriber_filter_route() -> None:
+    client = RecordingClient()
+
+    await client.get_list_subscribers(list_id=7, page=2, per_page=50)
+
+    assert last_request(client)["method"] == "GET"
+    assert last_request(client)["endpoint"] == "/api/subscribers"
+    assert last_request(client)["params"]["page"] == 2
+    assert last_request(client)["params"]["per_page"] == 50
+    assert last_request(client)["params"]["list_id"] == [7]
+
+
+@pytest.mark.asyncio
+async def test_partial_list_update_preserves_required_fields() -> None:
+    client = ListRecordingClient()
+
+    await client.update_list(7, description="Updated description")
+
+    assert last_request(client)["method"] == "PUT"
+    assert last_request(client)["endpoint"] == "/api/lists/7"
+    assert last_payload(client) == {
+        "name": "Existing list",
+        "type": "private",
+        "optin": "double",
+        "tags": ["customers"],
+        "description": "Updated description",
+    }
+
+
+@pytest.mark.asyncio
+async def test_subscriber_bounce_filter_uses_supported_nested_endpoint() -> None:
+    class BounceRecordingClient(RecordingClient):
+        async def get_subscriber_bounces(
+            self, subscriber_id: int
+        ) -> dict[str, Any]:
+            assert subscriber_id == 42
+            return {
+                "data": [
+                    {
+                        "id": 1,
+                        "campaign": {"id": 7, "name": "Newsletter"},
+                        "source": "smtp",
+                        "created_at": "2026-01-02",
+                    },
+                    {
+                        "id": 2,
+                        "campaign": {"id": 8, "name": "Other"},
+                        "source": "api",
+                        "created_at": "2026-01-01",
+                    },
+                ]
+            }
+
+    client = BounceRecordingClient()
+
+    response = await client.get_bounces(
+        subscriber_id=42, campaign_id=7, source="smtp"
+    )
+
+    assert response == {
+        "data": {
+            "results": [
+                {
+                    "id": 1,
+                    "campaign": {"id": 7, "name": "Newsletter"},
+                    "source": "smtp",
+                    "created_at": "2026-01-02",
+                }
+            ],
+            "total": 1,
+            "page": 1,
+            "per_page": 20,
+        }
+    }
+
+
+@pytest.mark.asyncio
+async def test_import_serializes_options_in_listmonk_params_field(tmp_path: Path) -> None:
+    client = RecordingClient()
+    csv_path = tmp_path / "subscribers.csv"
+    csv_path.write_text("email,name\nada@example.com,Ada\n", encoding="utf-8")
+
+    await client.import_subscribers(
+        str(csv_path), {"mode": "subscribe", "lists": [1, 2]}
+    )
+
+    assert last_request(client)["transport"] == "multipart"
+    assert last_request(client)["endpoint"] == "/api/import/subscribers"
+    assert last_payload(client) == {
+        "params": '{"mode":"subscribe","lists":[1,2]}'
+    }
+    assert last_request(client)["files"] == {"file": "subscribers.csv"}
+
+
+@pytest.mark.asyncio
+async def test_partial_campaign_update_preserves_relationships_and_metadata() -> None:
+    client = CampaignRecordingClient()
+
+    await client.update_campaign(8, subject="Updated subject")
+
+    payload = last_payload(client)
+    assert last_request(client)["endpoint"] == "/api/campaigns/8"
+    assert payload["subject"] == "Updated subject"
+    assert payload["lists"] == [1]
+    assert payload["media"] == [5]
+    assert payload["attribs"] == {"segment": "test"}
+    assert payload["archive_meta"] == {"utm": "source"}
+
+
+@pytest.mark.asyncio
+async def test_campaign_auxiliary_routes_match_listmonk_v6_api() -> None:
+    client = CampaignRecordingClient()
+
+    await client.get_campaign_analytics(
+        8, "clicks", "2026-01-01", "2026-08-11"
+    )
+    assert last_request(client)["endpoint"] == "/api/campaigns/analytics/clicks"
+    assert last_request(client)["params"] == {
+        "id": 8,
+        "from": "2026-01-01",
+        "to": "2026-08-11",
+    }
+
+    await client.archive_campaign(8, archive=False)
+    assert last_request(client)["endpoint"] == "/api/campaigns/8/archive"
+    assert last_payload(client) == {
+        "archive": False,
+        "archive_template_id": 4,
+        "archive_meta": {"utm": "source"},
+        "archive_slug": "draft",
+    }
+
+    await client.convert_campaign_content(8, "richtext")
+    assert last_request(client)["method"] == "POST"
+    assert last_request(client)["endpoint"] == "/api/campaigns/8/content"
+    assert last_payload(client) == {
+        "id": 8,
+        "body": "<p>Hello</p>",
+        "from": "html",
+        "to": "richtext",
+    }
+
+
+@pytest.mark.asyncio
+async def test_running_campaign_stats_filter_unsupported_api_argument() -> None:
+    class StatsRecordingClient(RecordingClient):
+        async def _request(
+            self,
+            method: str,
+            endpoint: str,
+            params: dict[str, Any] | None = None,
+            json_data: dict[str, Any] | None = None,
+            retry_count: int = 0,
+        ) -> dict[str, Any]:
+            await super()._request(method, endpoint, params, json_data, retry_count)
+            return {"data": [{"id": 1}, {"id": 2}, {"id": 3}]}
+
+    client = StatsRecordingClient()
+
+    response = await client.get_running_campaign_stats([1, 3])
+
+    assert last_request(client)["endpoint"] == "/api/campaigns/running/stats"
+    assert last_request(client)["params"] is None
+    assert response == {"data": [{"id": 1}, {"id": 3}]}
+
+
+@pytest.mark.asyncio
+async def test_template_update_and_preview_use_supported_contract() -> None:
+    client = TemplateRecordingClient()
+
+    await client.update_template(9, subject="Updated subject")
+    assert last_request(client)["endpoint"] == "/api/templates/9"
+    assert last_payload(client) == {
+        "name": "Existing template",
+        "subject": "Updated subject",
+        "body": "<p>Existing</p>",
+        "type": "tx",
+        "body_source": '{"rows":[]}',
+    }
+
+    await client.preview_template(9, "<p>Preview</p>")
+    assert last_request(client)["method"] == "POST"
+    assert last_request(client)["endpoint"] == "/api/templates/preview"
+    assert last_request(client)["transport"] == "form"
+    assert last_payload(client) == {
+        "body": "<p>Preview</p>",
+        "template_type": "tx",
+    }
+
+
+@pytest.mark.asyncio
+async def test_template_type_change_fails_instead_of_returning_false_success() -> None:
+    client = TemplateRecordingClient()
+
+    with pytest.raises(ListmonkAPIError, match="does not support changing"):
+        await client.update_template(9, type="campaign")
+
+    assert client.requests == []
+
+
+@pytest.mark.asyncio
+async def test_media_contract_uses_filename_and_supported_list_filters(
+    tmp_path: Path,
+) -> None:
+    client = RecordingClient()
+    image_path = tmp_path / "original.png"
+    image_path.write_bytes(b"png")
+
+    await client.get_media(page=2, per_page=10, query="hero")
+    assert last_request(client)["params"] == {
+        "page": 2,
+        "per_page": 10,
+        "query": "hero",
+    }
+
+    await client.upload_media(str(image_path), title="hero.png")
+    assert last_request(client)["transport"] == "multipart"
+    assert last_request(client)["files"] == {"file": "hero.png"}
+    assert not hasattr(server, "rename_media")
 
     await client.delete_unconfirmed_subscriptions("2026-01-01")
     assert (
         last_request(client)["endpoint"] == "/api/maintenance/subscriptions/unconfirmed"
     )
-    assert last_payload(client) == {"before_date": "2026-01-01"}
+    assert last_request(client)["transport"] == "form"
+    assert last_payload(client) == {"before_date": "2026-01-01T00:00:00Z"}
 
 
 @pytest.mark.asyncio
@@ -625,7 +967,6 @@ def test_create_campaign_model_exposes_conversion_default() -> None:
         altbody=None,
         template_id=None,
         tags=[],
-        send_later=None,
         send_at=None,
         messenger=None,
         headers=None,
