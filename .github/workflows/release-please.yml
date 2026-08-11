@@ -24,8 +24,10 @@ jobs:
           config-file: .github/release-please-config.json
           manifest-file: .github/.release-please-manifest.json
 
-      - name: Checkout release branch
-        if: steps.release.outputs.prs_created == 'true'
+      - name: Checkout repository
+        if: >-
+          steps.release.outputs.prs_created == 'true' ||
+          steps.release.outputs.release_created == 'true'
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
@@ -39,18 +41,55 @@ jobs:
           enable-cache: true
           prune-cache: true
 
-      - name: Sync uv.lock in release PR
+      - name: Sync release metadata in release PR
         if: steps.release.outputs.prs_created == 'true'
         run: |
           git fetch origin "$RELEASE_PLEASE_BRANCH"
           git switch "$RELEASE_PLEASE_BRANCH"
+          release_version="$(
+            python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])'
+          )"
+          python scripts/listmonk_api_compat.py stamp-release \
+            --version "$release_version" \
+            --verification source-verified \
+            --write
           uv lock --upgrade-package listmonk-mcp-bridge
-          if ! git diff --quiet uv.lock; then
+          if ! git diff --quiet; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add uv.lock
+            git add \
+              uv.lock \
+              compatibility/bridge-releases.json \
+              docs/compatibility.md
             git commit --amend --no-edit
             git push --force-with-lease origin "$RELEASE_PLEASE_BRANCH"
           else
-            echo "uv.lock is already up to date."
+            echo "Release metadata is already up to date."
           fi
+
+      - name: Publish API compatibility attestation in release notes
+        if: steps.release.outputs.release_created == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN_FOR_UPDATES || github.token }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag_name }}
+        run: |
+          current_body="$(gh release view "$RELEASE_TAG" --json body --jq .body)"
+          if grep -Fq "## Listmonk API Compatibility" <<< "$current_body"; then
+            echo "Compatibility attestation is already present."
+            exit 0
+          fi
+          contract_id="$(jq -r .contractId src/listmonk_mcp/listmonk_api_contract.json)"
+          declared_version="$(jq -r .upstreamDeclaredApiVersion src/listmonk_mcp/listmonk_api_contract.json)"
+          source_release="$(jq -r .sourceRelease src/listmonk_mcp/listmonk_api_contract.json)"
+          source_commit="$(jq -r .sourceCommit src/listmonk_mcp/listmonk_api_contract.json)"
+          {
+            printf "%s\n\n" "$current_body"
+            printf "## Listmonk API Compatibility\n\n"
+            printf -- "- API contract: \`%s\`\n" "$contract_id"
+            printf -- "- Upstream-declared API version: \`%s\`\n" "$declared_version"
+            printf -- "- Source snapshot: [\`%s\`](https://github.com/knadh/listmonk/releases/tag/%s) at \`%s\`\n" \
+              "$source_release" "$source_release" "$source_commit"
+            printf -- "- [Full compatibility matrix](https://github.com/%s/blob/%s/docs/compatibility.md)\n" \
+              "$GITHUB_REPOSITORY" "$RELEASE_TAG"
+          } > "${RUNNER_TEMP}/release-notes.md"
+          gh release edit "$RELEASE_TAG" --notes-file "${RUNNER_TEMP}/release-notes.md"

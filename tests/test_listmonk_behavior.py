@@ -593,6 +593,10 @@ async def test_misc_settings_admin_and_logs_methods_use_swagger_paths() -> None:
     await client.get_server_config()
     assert last_request(client)["endpoint"] == "/api/config"
 
+    await client.get_about()
+    assert last_request(client)["method"] == "GET"
+    assert last_request(client)["endpoint"] == "/api/about"
+
     await client.get_i18n_language("en")
     assert last_request(client)["endpoint"] == "/api/lang/en"
 

@@ -56,6 +56,32 @@ remain available for at least one minor release and should return
 Release notes are maintained in `CHANGELOG.md`. Documentation is versioned in
 `docs/` and published to GitHub Pages through the docs workflow.
 
+## Listmonk API Compatibility
+
+Run the local, network-free contract gate before publishing changes:
+
+```bash
+python scripts/listmonk_api_compat.py validate
+```
+
+The scheduled `Listmonk API Watch` workflow polls stable upstream releases. It
+derives a contract from Listmonk's Go router and OpenAPI document, opens a draft
+PR for changed metadata, and fails closed when routes are new, removed, or no
+longer match the bridge. Update `compatibility/listmonk-api-policy.json` only
+after implementing a route or documenting why it remains omitted.
+
+Changes to routes, schemas, permissions, or relevant upstream handler source also
+change the contract fingerprint. After reviewing and resolving the generated
+diff, acknowledge that exact contract before rerunning validation:
+
+```bash
+python scripts/listmonk_api_compat.py acknowledge --write
+```
+
+Repository variable `LISTMONK_API_ASSIGN_COPILOT=true` optionally assigns a
+review-required tracking issue to Copilot. The agent targets the automation
+branch; the main compatibility PR still requires normal CI and review.
+
 ## Transport Strategy
 
 The supported production transport is stdio. Docker usage should still expose

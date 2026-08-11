@@ -26,6 +26,9 @@ Documentation: https://mnbro.github.io/listmonk-mcp-bridge/
 
 `listmonk-mcp-bridge` lets MCP clients work with the Listmonk API through typed tools for subscribers, lists, campaigns, templates, media, analytics, imports, bounces and transactional messages.
 
+Each bridge release is linked to a content-addressed Listmonk API contract in
+the [compatibility matrix](https://mnbro.github.io/listmonk-mcp-bridge/compatibility/).
+
 It includes runtime confirmations for destructive actions, real email sends and sensitive reads.
 
 ## Recommended tools for LLM agents / orchestrators
