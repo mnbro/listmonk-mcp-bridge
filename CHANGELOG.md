@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.33](https://github.com/mnbro/listmonk-mcp-bridge/compare/v0.4.32...v0.4.33) (2026-08-11)
+
+
+### Bug Fixes
+
+* align tools with Listmonk API ([#66](https://github.com/mnbro/listmonk-mcp-bridge/issues/66)) ([9cca080](https://github.com/mnbro/listmonk-mcp-bridge/commit/9cca0800b940e7b0fb03393f47ab200467669a05))
+
 ## [0.4.32](https://github.com/mnbro/listmonk-mcp-bridge/compare/v0.4.31...v0.4.32) (2026-08-11)
 
 
