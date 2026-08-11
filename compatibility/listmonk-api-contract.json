@@ -1,0 +1,1058 @@
+{
+  "schemaVersion": 1,
+  "contractId": "lm-api:sha256:c66622870912c9a5f7eb0058a151fc6d53bbe51dd2e0321002601b5ee46fc1bd",
+  "upstreamDeclaredApiVersion": "1.0.0",
+  "source": {
+    "repository": "knadh/listmonk",
+    "release": "v6.2.0",
+    "commit": "ef0a75872463f10a4848af6c547d1c057405453a",
+    "releaseUrl": "https://github.com/knadh/listmonk/releases/tag/v6.2.0",
+    "routerPath": "cmd/handlers.go",
+    "openapiPath": "docs/swagger/collections.yaml"
+  },
+  "fingerprints": {
+    "routesSha256": "cf8c639ee4d334ea24cf8eef8fc3efc390647a79d3551cb46b606949f1b224b6",
+    "openapiSha256": "b9bacc15711f1e9c34260075f7226f81ddb672678b1b7c6f9b90757c21295c53",
+    "handlerFilesSha256": "0825e7fda1734b232a0df11f2d75335b451a6fd095fedd2b4d332f6116a20fb8"
+  },
+  "handlerFiles": {
+    "cmd/admin.go": "81fe54d959eb557c1ab1910c18bfa39806775ec98a56ac96fa69cab1ba892a59",
+    "cmd/archive.go": "296f4c623a63432c75a945b8dbf5b2d17b50eeaf0cd3c30a231e570c83eb38cf",
+    "cmd/auth.go": "eea65518e4bd9a1c128b5db1735ec031c981137159272c4fbe317223cc358687",
+    "cmd/bounce.go": "2636992f5cac0e5d191b06b0113a4638a7961bf9a1d365bd52ad1d4e8d26abd4",
+    "cmd/campaigns.go": "c9a3938f5b0e835f6637f9de75ef4829e7b9e610c843cffd87ca587080503535",
+    "cmd/events.go": "0d516f4af3da02523b58d0864e9227ab794940e2e0223331340e3b81045fc6d5",
+    "cmd/handlers.go": "7f446b1fdbd74372bb5e29dbbc3933040db6bb94f87c680177d90da1055a2243",
+    "cmd/i18n.go": "08eadf6fc3843c5b56c57b19d5541ed56edad7bd8b2195c97ef4ad190c046b21",
+    "cmd/import.go": "e1687da2f1280dccce68228294ba9d2a87c943dc79dbe786e3311099de549a29",
+    "cmd/lists.go": "299a4f67f00ac1d2f44c00c08016c8ca59a09014413f37181a8d4a94554a145c",
+    "cmd/maintenance.go": "866ff46ffe6ad9ccf8269795475d3a952c1853f8a2f7c160d308383af70ba9a0",
+    "cmd/manager_store.go": "73233787ab60fc5c8fa074b20ae4d566adba9d471a12b7d5f916694ae02f86d9",
+    "cmd/media.go": "f77091891ec583575e9acb18e46f6198f11e3988ec1defcd013398b466106992",
+    "cmd/public.go": "c63b9665f09a3d89aa9b30dbee8625b4ebf4183cd518edb12ed47db58cf4c060",
+    "cmd/roles.go": "0c4fe9466abcfa9349bdf4884a4d36987fd87c420283cdaa618cbddde3619ecb",
+    "cmd/settings.go": "6852925ba4ffa27de7630bc79c97d983ca762eb9c6707e84064d10d36156cab2",
+    "cmd/subscribers.go": "8cc851a3ba7ea763bf2bb49fa2f04df02222586a9c12e959ed118e1bbed5c6c8",
+    "cmd/templates.go": "96ed968ceae5b59b48e8e8034e859efdf5d005a708a244b87d9292be8437c18d",
+    "cmd/tx.go": "acc71ea55d6ee6c5862d1fe1a044001f16176119bcf001a7307204c200c6ae42",
+    "cmd/users.go": "cc19d8fbdaa9f4432e76aae93e67e548f9fbba0bcab2cf595b655b82c249b5ae"
+  },
+  "routes": [
+    {
+      "method": "GET",
+      "path": "/api/about",
+      "handlers": [
+        "GetAboutInfo"
+      ],
+      "permissions": []
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/reload",
+      "handlers": [
+        "ReloadApp"
+      ],
+      "permissions": [
+        "settings:manage"
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/bounces",
+      "handlers": [
+        "DeleteBounces"
+      ],
+      "permissions": [
+        "bounces:manage"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/bounces",
+      "handlers": [
+        "GetBounces"
+      ],
+      "permissions": [
+        "bounces:get"
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/bounces/:id",
+      "handlers": [
+        "DeleteBounce"
+      ],
+      "permissions": [
+        "bounces:manage"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/bounces/:id",
+      "handlers": [
+        "GetBounce"
+      ],
+      "permissions": [
+        "bounces:get"
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/bounces/blocklist",
+      "handlers": [
+        "BlocklistBouncedSubscribers"
+      ],
+      "permissions": [
+        "bounces:manage"
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/campaigns",
+      "handlers": [
+        "DeleteCampaigns"
+      ],
+      "permissions": [
+        "campaigns:manage",
+        "campaigns:manage_all"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/campaigns",
+      "handlers": [
+        "GetCampaigns"
+      ],
+      "permissions": [
+        "campaigns:get",
+        "campaigns:get_all"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/campaigns",
+      "handlers": [
+        "CreateCampaign"
+      ],
+      "permissions": [
+        "campaigns:manage",
+        "campaigns:manage_all"
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/campaigns/:id",
+      "handlers": [
+        "DeleteCampaign"
+      ],
+      "permissions": [
+        "campaigns:manage",
+        "campaigns:manage_all"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/campaigns/:id",
+      "handlers": [
+        "GetCampaign"
+      ],
+      "permissions": [
+        "campaigns:get",
+        "campaigns:get_all"
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/campaigns/:id",
+      "handlers": [
+        "UpdateCampaign"
+      ],
+      "permissions": [
+        "campaigns:manage",
+        "campaigns:manage_all"
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/campaigns/:id/archive",
+      "handlers": [
+        "UpdateCampaignArchive"
+      ],
+      "permissions": [
+        "campaigns:manage",
+        "campaigns:manage_all"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/campaigns/:id/content",
+      "handlers": [
+        "CampaignContent"
+      ],
+      "permissions": [
+        "campaigns:manage",
+        "campaigns:manage_all"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/campaigns/:id/preview",
+      "handlers": [
+        "PreviewCampaign"
+      ],
+      "permissions": [
+        "campaigns:get",
+        "campaigns:get_all"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/campaigns/:id/preview",
+      "handlers": [
+        "PreviewCampaign"
+      ],
+      "permissions": [
+        "campaigns:get",
+        "campaigns:get_all"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/campaigns/:id/preview/archive",
+      "handlers": [
+        "PreviewCampaignArchive"
+      ],
+      "permissions": [
+        "campaigns:get",
+        "campaigns:get_all"
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/campaigns/:id/status",
+      "handlers": [
+        "UpdateCampaignStatus"
+      ],
+      "permissions": [
+        "campaigns:send"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/campaigns/:id/test",
+      "handlers": [
+        "TestCampaign"
+      ],
+      "permissions": [
+        "campaigns:manage",
+        "campaigns:manage_all"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/campaigns/:id/text",
+      "handlers": [
+        "PreviewCampaign"
+      ],
+      "permissions": [
+        "campaigns:get"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/campaigns/analytics/:type",
+      "handlers": [
+        "GetCampaignViewAnalytics"
+      ],
+      "permissions": [
+        "campaigns:get_analytics"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/campaigns/running/stats",
+      "handlers": [
+        "GetRunningCampaignStats"
+      ],
+      "permissions": [
+        "campaigns:get",
+        "campaigns:get_all"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/config",
+      "handlers": [
+        "GetServerConfig"
+      ],
+      "permissions": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/dashboard/charts",
+      "handlers": [
+        "GetDashboardCharts"
+      ],
+      "permissions": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/dashboard/counts",
+      "handlers": [
+        "GetDashboardCounts"
+      ],
+      "permissions": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/events",
+      "handlers": [
+        "EventStream"
+      ],
+      "permissions": [
+        "settings:get"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/health",
+      "handlers": [
+        "HealthCheck"
+      ],
+      "permissions": []
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/import/subscribers",
+      "handlers": [
+        "StopImportSubscribers"
+      ],
+      "permissions": [
+        "subscribers:import"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/import/subscribers",
+      "handlers": [
+        "GetImportSubscribers"
+      ],
+      "permissions": [
+        "subscribers:import"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/import/subscribers",
+      "handlers": [
+        "ImportSubscribers"
+      ],
+      "permissions": [
+        "subscribers:import"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/import/subscribers/logs",
+      "handlers": [
+        "GetImportSubscriberStats"
+      ],
+      "permissions": [
+        "subscribers:import"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/lang/:lang",
+      "handlers": [
+        "GetI18nLang"
+      ],
+      "permissions": []
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/lists",
+      "handlers": [
+        "DeleteLists"
+      ],
+      "permissions": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/lists",
+      "handlers": [
+        "GetLists"
+      ],
+      "permissions": []
+    },
+    {
+      "method": "POST",
+      "path": "/api/lists",
+      "handlers": [
+        "CreateList"
+      ],
+      "permissions": [
+        "lists:manage_all"
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/lists/:id",
+      "handlers": [
+        "DeleteList"
+      ],
+      "permissions": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/lists/:id",
+      "handlers": [
+        "GetList"
+      ],
+      "permissions": []
+    },
+    {
+      "method": "PUT",
+      "path": "/api/lists/:id",
+      "handlers": [
+        "UpdateList"
+      ],
+      "permissions": []
+    },
+    {
+      "method": "POST",
+      "path": "/api/logout",
+      "handlers": [
+        "Logout"
+      ],
+      "permissions": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/logs",
+      "handlers": [
+        "GetLogs"
+      ],
+      "permissions": [
+        "settings:get"
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/maintenance/analytics/:type",
+      "handlers": [
+        "GCCampaignAnalytics"
+      ],
+      "permissions": [
+        "settings:maintain"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/maintenance/analytics/:type/export",
+      "handlers": [
+        "ExportCampaignAnalytics"
+      ],
+      "permissions": [
+        "settings:maintain"
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/maintenance/subscribers/:type",
+      "handlers": [
+        "GCSubscribers"
+      ],
+      "permissions": [
+        "settings:maintain"
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/maintenance/subscriptions/unconfirmed",
+      "handlers": [
+        "GCSubscriptions"
+      ],
+      "permissions": [
+        "settings:maintain"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/media",
+      "handlers": [
+        "GetAllMedia"
+      ],
+      "permissions": [
+        "media:get"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/media",
+      "handlers": [
+        "UploadMedia"
+      ],
+      "permissions": [
+        "media:manage"
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/media/:id",
+      "handlers": [
+        "DeleteMedia"
+      ],
+      "permissions": [
+        "media:manage"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/media/:id",
+      "handlers": [
+        "GetMedia"
+      ],
+      "permissions": [
+        "media:get"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/profile",
+      "handlers": [
+        "GetUserProfile"
+      ],
+      "permissions": []
+    },
+    {
+      "method": "PUT",
+      "path": "/api/profile",
+      "handlers": [
+        "UpdateUserProfile"
+      ],
+      "permissions": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/public/archive",
+      "handlers": [
+        "GetCampaignArchives"
+      ],
+      "permissions": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/public/captcha/altcha",
+      "handlers": [
+        "AltchaChallenge"
+      ],
+      "permissions": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/public/lists",
+      "handlers": [
+        "GetPublicLists"
+      ],
+      "permissions": []
+    },
+    {
+      "method": "POST",
+      "path": "/api/public/subscription",
+      "handlers": [
+        "PublicSubscription"
+      ],
+      "permissions": []
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/roles/:id",
+      "handlers": [
+        "DeleteRole"
+      ],
+      "permissions": [
+        "roles:manage"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/roles/lists",
+      "handlers": [
+        "GeListRoles"
+      ],
+      "permissions": [
+        "roles:get"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/roles/lists",
+      "handlers": [
+        "CreateListRole"
+      ],
+      "permissions": [
+        "roles:manage"
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/roles/lists/:id",
+      "handlers": [
+        "UpdateListRole"
+      ],
+      "permissions": [
+        "roles:manage"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/roles/users",
+      "handlers": [
+        "GetUserRoles"
+      ],
+      "permissions": [
+        "roles:get"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/roles/users",
+      "handlers": [
+        "CreateUserRole"
+      ],
+      "permissions": [
+        "roles:manage"
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/roles/users/:id",
+      "handlers": [
+        "UpdateUserRole"
+      ],
+      "permissions": [
+        "roles:manage"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/settings",
+      "handlers": [
+        "GetSettings"
+      ],
+      "permissions": [
+        "settings:get"
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/settings",
+      "handlers": [
+        "UpdateSettings"
+      ],
+      "permissions": [
+        "settings:manage"
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/settings/:key",
+      "handlers": [
+        "UpdateSettingsByKey"
+      ],
+      "permissions": [
+        "settings:manage"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/settings/smtp/test",
+      "handlers": [
+        "TestSMTPSettings"
+      ],
+      "permissions": [
+        "settings:manage"
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/subscribers",
+      "handlers": [
+        "DeleteSubscribers"
+      ],
+      "permissions": [
+        "subscribers:manage"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/subscribers",
+      "handlers": [
+        "QuerySubscribers"
+      ],
+      "permissions": [
+        "subscribers:get",
+        "subscribers:get_all"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/subscribers",
+      "handlers": [
+        "CreateSubscriber"
+      ],
+      "permissions": [
+        "subscribers:manage"
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/subscribers/:id",
+      "handlers": [
+        "DeleteSubscriber"
+      ],
+      "permissions": [
+        "subscribers:manage"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/subscribers/:id",
+      "handlers": [
+        "GetSubscriber"
+      ],
+      "permissions": [
+        "subscribers:get",
+        "subscribers:get_all"
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/subscribers/:id",
+      "handlers": [
+        "PatchSubscriber"
+      ],
+      "permissions": [
+        "subscribers:manage"
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/subscribers/:id",
+      "handlers": [
+        "UpdateSubscriber"
+      ],
+      "permissions": [
+        "subscribers:manage"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/subscribers/:id/activity",
+      "handlers": [
+        "GetSubscriberActivity"
+      ],
+      "permissions": [
+        "subscribers:get",
+        "subscribers:get_all"
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/subscribers/:id/blocklist",
+      "handlers": [
+        "BlocklistSubscriber"
+      ],
+      "permissions": [
+        "subscribers:manage"
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/subscribers/:id/bounces",
+      "handlers": [
+        "DeleteSubscriberBounces"
+      ],
+      "permissions": [
+        "bounces:manage"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/subscribers/:id/bounces",
+      "handlers": [
+        "GetSubscriberBounces"
+      ],
+      "permissions": [
+        "bounces:get"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/subscribers/:id/export",
+      "handlers": [
+        "ExportSubscriberData"
+      ],
+      "permissions": [
+        "subscribers:get",
+        "subscribers:get_all"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/subscribers/:id/optin",
+      "handlers": [
+        "SubscriberSendOptin"
+      ],
+      "permissions": [
+        "subscribers:manage"
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/subscribers/blocklist",
+      "handlers": [
+        "BlocklistSubscribers"
+      ],
+      "permissions": [
+        "subscribers:manage"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/subscribers/export",
+      "handlers": [
+        "ExportSubscribers"
+      ],
+      "permissions": [
+        "subscribers:get",
+        "subscribers:get_all"
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/subscribers/lists",
+      "handlers": [
+        "ManageSubscriberLists"
+      ],
+      "permissions": [
+        "subscribers:manage"
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/subscribers/lists/:id",
+      "handlers": [
+        "ManageSubscriberLists"
+      ],
+      "permissions": [
+        "subscribers:manage"
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/subscribers/query/blocklist",
+      "handlers": [
+        "BlocklistSubscribersByQuery"
+      ],
+      "permissions": [
+        "subscribers:manage"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/subscribers/query/delete",
+      "handlers": [
+        "DeleteSubscribersByQuery"
+      ],
+      "permissions": [
+        "subscribers:manage"
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/subscribers/query/lists",
+      "handlers": [
+        "ManageSubscriberListsByQuery"
+      ],
+      "permissions": [
+        "subscribers:manage"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/templates",
+      "handlers": [
+        "GetTemplates"
+      ],
+      "permissions": [
+        "templates:get"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/templates",
+      "handlers": [
+        "CreateTemplate"
+      ],
+      "permissions": [
+        "templates:manage"
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/templates/:id",
+      "handlers": [
+        "DeleteTemplate"
+      ],
+      "permissions": [
+        "templates:manage"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/templates/:id",
+      "handlers": [
+        "GetTemplate"
+      ],
+      "permissions": [
+        "templates:get"
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/templates/:id",
+      "handlers": [
+        "UpdateTemplate"
+      ],
+      "permissions": [
+        "templates:manage"
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/templates/:id/default",
+      "handlers": [
+        "TemplateSetDefault"
+      ],
+      "permissions": [
+        "templates:manage"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/templates/:id/preview",
+      "handlers": [
+        "PreviewTemplate"
+      ],
+      "permissions": [
+        "templates:get"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/templates/preview",
+      "handlers": [
+        "PreviewTemplateBody"
+      ],
+      "permissions": [
+        "templates:get"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/tx",
+      "handlers": [
+        "SendTxMessage"
+      ],
+      "permissions": [
+        "tx:send"
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/users",
+      "handlers": [
+        "DeleteUsers"
+      ],
+      "permissions": [
+        "users:manage"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/users",
+      "handlers": [
+        "GetUsers"
+      ],
+      "permissions": [
+        "users:get"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/users",
+      "handlers": [
+        "CreateUser"
+      ],
+      "permissions": [
+        "users:manage"
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/users/:id",
+      "handlers": [
+        "DeleteUser"
+      ],
+      "permissions": [
+        "users:manage"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/:id",
+      "handlers": [
+        "GetUser"
+      ],
+      "permissions": [
+        "users:get"
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/users/:id",
+      "handlers": [
+        "UpdateUser"
+      ],
+      "permissions": [
+        "users:manage"
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/users/:id/twofa",
+      "handlers": [
+        "DisableTOTP"
+      ],
+      "permissions": []
+    },
+    {
+      "method": "PUT",
+      "path": "/api/users/:id/twofa",
+      "handlers": [
+        "EnableTOTP"
+      ],
+      "permissions": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/:id/twofa/totp",
+      "handlers": [
+        "GenerateTOTPQR"
+      ],
+      "permissions": []
+    }
+  ]
+}

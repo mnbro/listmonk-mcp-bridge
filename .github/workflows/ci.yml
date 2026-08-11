@@ -45,6 +45,9 @@ jobs:
       - name: Run linting
         run: uv run ruff check .
 
+      - name: Validate Listmonk API compatibility contract
+        run: uv run python scripts/listmonk_api_compat.py validate
+
       - name: Run tests
         run: uv run python -m pytest
 

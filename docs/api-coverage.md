@@ -7,6 +7,11 @@ The route and payload contract was last audited on 2026-08-11 against
 upstream commit
 [`d946ce5`](https://github.com/knadh/listmonk/tree/d946ce543f90d77caf751efab54ab86f94127e14).
 
+The exact content-addressed API contract and bridge release compatibility
+history are published in the [Listmonk API compatibility matrix](compatibility.md).
+Scheduled automation checks new stable Listmonk releases and requires an explicit
+implementation or omission decision for every new route.
+
 | Area | Covered operations |
 | --- | --- |
 | Health and admin reads | Health check, server config, settings, logs, i18n language, dashboard charts and counts. |

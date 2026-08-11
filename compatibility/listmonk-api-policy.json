@@ -1,0 +1,1350 @@
+{
+  "schemaVersion": 1,
+  "contractId": "lm-api:sha256:c66622870912c9a5f7eb0058a151fc6d53bbe51dd2e0321002601b5ee46fc1bd",
+  "reviewedContractId": "lm-api:sha256:c66622870912c9a5f7eb0058a151fc6d53bbe51dd2e0321002601b5ee46fc1bd",
+  "decisions": [
+    {
+      "method": "GET",
+      "path": "/api/about",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "get_about"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "tool:listmonk_capability_report"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/reload",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "reload_app"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "tool:reload_app"
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/bounces",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "delete_bounces"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "tool:delete_bounces"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/bounces",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "get_bounces"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "tool:bounce_health_summary",
+        "tool:get_bounces"
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/bounces/:id",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "delete_bounce"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "tool:delete_bounce"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/bounces/:id",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "get_bounce"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "tool:get_bounce"
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/bounces/blocklist",
+      "status": "omitted",
+      "reason": "Reviewed against v6.2.0; not exposed by the current bridge scope."
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/campaigns",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "delete_campaigns"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "tool:delete_campaigns"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/campaigns",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "get_campaigns"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "resource:listmonk://campaigns",
+        "tool:campaign_catalog",
+        "tool:get_campaigns"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/campaigns",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "create_campaign"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "tool:create_campaign",
+        "tool:safe_create_campaign_draft"
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/campaigns/:id",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "delete_campaign"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "tool:delete_campaign"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/campaigns/:id",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "get_campaign"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "resource:listmonk://campaign/{campaign_id}",
+        "tool:batch_replace_in_campaign_body",
+        "tool:campaign_performance_summary",
+        "tool:campaign_preview_pack",
+        "tool:export_campaign_markdown",
+        "tool:get_campaign",
+        "tool:regex_replace_in_campaign_body",
+        "tool:replace_in_campaign_body"
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/campaigns/:id",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "update_campaign"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "tool:batch_replace_in_campaign_body",
+        "tool:regex_replace_in_campaign_body",
+        "tool:replace_in_campaign_body",
+        "tool:safe_update_campaign_content",
+        "tool:update_campaign"
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/campaigns/:id/archive",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "archive_campaign"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "tool:archive_campaign"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/campaigns/:id/content",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "convert_campaign_content"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "tool:convert_campaign_content"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/campaigns/:id/preview",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "get_campaign_preview"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "resource:listmonk://campaign/{campaign_id}/preview",
+        "tool:campaign_preview_pack",
+        "tool:get_campaign_html_preview"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/campaigns/:id/preview",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "preview_campaign_body"
+      ],
+      "transports": [
+        "form"
+      ],
+      "mcpSurfaces": [
+        "tool:preview_campaign_body"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/campaigns/:id/preview/archive",
+      "status": "omitted",
+      "reason": "Reviewed against v6.2.0; not exposed by the current bridge scope."
+    },
+    {
+      "method": "PUT",
+      "path": "/api/campaigns/:id/status",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "schedule_campaign",
+        "send_campaign",
+        "update_campaign_status"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "tool:safe_schedule_campaign",
+        "tool:safe_send_campaign",
+        "tool:schedule_campaign",
+        "tool:send_campaign",
+        "tool:update_campaign_status"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/campaigns/:id/test",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "test_campaign"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "tool:safe_send_campaign",
+        "tool:safe_test_campaign",
+        "tool:test_campaign"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/campaigns/:id/text",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "preview_campaign_text"
+      ],
+      "transports": [
+        "form"
+      ],
+      "mcpSurfaces": [
+        "tool:preview_campaign_text"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/campaigns/analytics/:type",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "get_campaign_analytics"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "tool:campaign_performance_summary",
+        "tool:export_engagement_events",
+        "tool:get_campaign_analytics"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/campaigns/running/stats",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "get_running_campaign_stats"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "tool:get_running_campaign_stats"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/config",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "get_server_config"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "tool:get_server_config"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/dashboard/charts",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "get_dashboard_charts"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "tool:get_dashboard_charts"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/dashboard/counts",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "get_dashboard_counts"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "tool:get_dashboard_counts"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/events",
+      "status": "omitted",
+      "reason": "Reviewed against v6.2.0; not exposed by the current bridge scope."
+    },
+    {
+      "method": "GET",
+      "path": "/api/health",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "health_check"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "tool:check_listmonk_health",
+        "tool:listmonk_capability_report",
+        "tool:listmonk_diagnostics"
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/import/subscribers",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "stop_import_subscribers"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "tool:stop_import_subscribers"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/import/subscribers",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "get_import_subscribers"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "tool:get_import_subscribers",
+        "tool:import_status_summary"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/import/subscribers",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "import_subscribers"
+      ],
+      "transports": [
+        "multipart"
+      ],
+      "mcpSurfaces": [
+        "tool:import_subscribers",
+        "tool:safe_import_subscribers"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/import/subscribers/logs",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "get_import_subscriber_logs"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "tool:get_import_subscriber_logs",
+        "tool:import_status_summary"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/lang/:lang",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "get_i18n_language"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "tool:get_i18n_language"
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/lists",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "delete_lists"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "tool:delete_mailing_lists"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/lists",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "get_lists"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "resource:listmonk://lists",
+        "tool:audience_catalog",
+        "tool:get_mailing_lists"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/lists",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "create_list"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "tool:create_mailing_list"
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/lists/:id",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "delete_list"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "tool:delete_mailing_list"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/lists/:id",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "get_list"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "resource:listmonk://list/{list_id}",
+        "tool:get_mailing_list"
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/lists/:id",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "update_list"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "tool:update_mailing_list"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/logout",
+      "status": "omitted",
+      "reason": "Reviewed against v6.2.0; not exposed by the current bridge scope."
+    },
+    {
+      "method": "GET",
+      "path": "/api/logs",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "get_logs"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "tool:get_logs"
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/maintenance/analytics/:type",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "delete_campaign_analytics"
+      ],
+      "transports": [
+        "form"
+      ],
+      "mcpSurfaces": [
+        "tool:delete_campaign_analytics"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/maintenance/analytics/:type/export",
+      "status": "omitted",
+      "reason": "Reviewed against v6.2.0; not exposed by the current bridge scope."
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/maintenance/subscribers/:type",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "delete_gc_subscribers"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "tool:delete_gc_subscribers"
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/maintenance/subscriptions/unconfirmed",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "delete_unconfirmed_subscriptions"
+      ],
+      "transports": [
+        "form"
+      ],
+      "mcpSurfaces": [
+        "tool:delete_unconfirmed_subscriptions"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/media",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "get_media"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "resource:listmonk://media",
+        "tool:get_media_list",
+        "tool:media_library_summary"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/media",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "upload_media"
+      ],
+      "transports": [
+        "multipart"
+      ],
+      "mcpSurfaces": [
+        "tool:safe_upload_campaign_asset",
+        "tool:upload_media_file"
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/media/:id",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "delete_media"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "tool:delete_media_file"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/media/:id",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "get_media_file"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "tool:get_media_file"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/profile",
+      "status": "omitted",
+      "reason": "Reviewed against v6.2.0; not exposed by the current bridge scope."
+    },
+    {
+      "method": "PUT",
+      "path": "/api/profile",
+      "status": "omitted",
+      "reason": "Reviewed against v6.2.0; not exposed by the current bridge scope."
+    },
+    {
+      "method": "GET",
+      "path": "/api/public/archive",
+      "status": "omitted",
+      "reason": "Reviewed against v6.2.0; not exposed by the current bridge scope."
+    },
+    {
+      "method": "GET",
+      "path": "/api/public/captcha/altcha",
+      "status": "omitted",
+      "reason": "Reviewed against v6.2.0; not exposed by the current bridge scope."
+    },
+    {
+      "method": "GET",
+      "path": "/api/public/lists",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "get_public_lists"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "tool:get_public_mailing_lists"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/public/subscription",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "create_public_subscription"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "tool:create_public_subscription"
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/roles/:id",
+      "status": "omitted",
+      "reason": "Reviewed against v6.2.0; not exposed by the current bridge scope."
+    },
+    {
+      "method": "GET",
+      "path": "/api/roles/lists",
+      "status": "omitted",
+      "reason": "Reviewed against v6.2.0; not exposed by the current bridge scope."
+    },
+    {
+      "method": "POST",
+      "path": "/api/roles/lists",
+      "status": "omitted",
+      "reason": "Reviewed against v6.2.0; not exposed by the current bridge scope."
+    },
+    {
+      "method": "PUT",
+      "path": "/api/roles/lists/:id",
+      "status": "omitted",
+      "reason": "Reviewed against v6.2.0; not exposed by the current bridge scope."
+    },
+    {
+      "method": "GET",
+      "path": "/api/roles/users",
+      "status": "omitted",
+      "reason": "Reviewed against v6.2.0; not exposed by the current bridge scope."
+    },
+    {
+      "method": "POST",
+      "path": "/api/roles/users",
+      "status": "omitted",
+      "reason": "Reviewed against v6.2.0; not exposed by the current bridge scope."
+    },
+    {
+      "method": "PUT",
+      "path": "/api/roles/users/:id",
+      "status": "omitted",
+      "reason": "Reviewed against v6.2.0; not exposed by the current bridge scope."
+    },
+    {
+      "method": "GET",
+      "path": "/api/settings",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "get_settings"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "tool:get_settings"
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/settings",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "update_settings"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "tool:update_settings"
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/settings/:key",
+      "status": "omitted",
+      "reason": "Reviewed against v6.2.0; not exposed by the current bridge scope."
+    },
+    {
+      "method": "POST",
+      "path": "/api/settings/smtp/test",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "test_smtp_settings"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "tool:test_smtp_settings"
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/subscribers",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "delete_subscribers"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "tool:remove_subscribers"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/subscribers",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "get_subscribers"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "resource:listmonk://subscribers",
+        "tool:get_subscribers"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/subscribers",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "create_subscriber"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "tool:add_subscriber",
+        "tool:safe_add_subscriber",
+        "tool:upsert_subscriber_profiles"
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/subscribers/:id",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "delete_subscriber"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "tool:remove_subscriber"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/subscribers/:id",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "get_subscriber"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "resource:listmonk://subscriber/{subscriber_id}",
+        "tool:get_subscriber"
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/subscribers/:id",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "update_subscriber"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "tool:safe_add_subscriber",
+        "tool:update_subscriber",
+        "tool:upsert_subscriber_profiles"
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/subscribers/:id",
+      "status": "omitted",
+      "reason": "Reviewed against v6.2.0; not exposed by the current bridge scope."
+    },
+    {
+      "method": "GET",
+      "path": "/api/subscribers/:id/activity",
+      "status": "omitted",
+      "reason": "Reviewed against v6.2.0; not exposed by the current bridge scope."
+    },
+    {
+      "method": "PUT",
+      "path": "/api/subscribers/:id/blocklist",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "blocklist_subscriber"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "tool:blocklist_subscriber"
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/subscribers/:id/bounces",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "delete_subscriber_bounces"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "tool:delete_subscriber_bounces"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/subscribers/:id/bounces",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "get_subscriber_bounces"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "tool:get_subscriber_bounces",
+        "tool:get_subscriber_context"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/subscribers/:id/export",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "get_subscriber_export"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "tool:get_subscriber_export"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/subscribers/:id/optin",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "send_subscriber_optin"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "tool:safe_send_subscriber_optin",
+        "tool:send_subscriber_optin"
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/subscribers/blocklist",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "blocklist_subscribers"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "tool:blocklist_subscribers"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/subscribers/export",
+      "status": "omitted",
+      "reason": "Reviewed against v6.2.0; not exposed by the current bridge scope."
+    },
+    {
+      "method": "PUT",
+      "path": "/api/subscribers/lists",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "manage_subscriber_lists"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "tool:manage_subscriber_lists",
+        "tool:safe_assign_subscribers_to_lists"
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/subscribers/lists/:id",
+      "status": "omitted",
+      "reason": "Reviewed against v6.2.0; not exposed by the current bridge scope."
+    },
+    {
+      "method": "PUT",
+      "path": "/api/subscribers/query/blocklist",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "blocklist_subscribers_by_query"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "tool:blocklist_subscribers_by_query"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/subscribers/query/delete",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "delete_subscribers_by_query"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "tool:delete_subscribers_by_query"
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/subscribers/query/lists",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "manage_subscriber_lists_by_query"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "tool:manage_subscriber_lists_by_query"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/templates",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "get_templates"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "resource:listmonk://templates",
+        "tool:get_templates",
+        "tool:template_catalog"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/templates",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "create_template"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "tool:create_template"
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/templates/:id",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "delete_template"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "tool:delete_template"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/templates/:id",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "get_template"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "resource:listmonk://template/{template_id}",
+        "tool:get_template",
+        "tool:safe_send_transactional_email"
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/templates/:id",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "update_template"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "tool:update_template"
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/templates/:id/default",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "set_default_template"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "tool:set_default_template"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/templates/:id/preview",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "get_template_preview"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "resource:listmonk://template/{template_id}/preview",
+        "tool:get_template_html_preview"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/templates/preview",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "preview_template"
+      ],
+      "transports": [
+        "form"
+      ],
+      "mcpSurfaces": [
+        "tool:preview_template"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/tx",
+      "status": "implemented",
+      "reason": "Directly used by the Listmonk client.",
+      "clientMethods": [
+        "send_transactional_email"
+      ],
+      "transports": [
+        "json"
+      ],
+      "mcpSurfaces": [
+        "tool:safe_send_transactional_email",
+        "tool:send_transactional_email"
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/users",
+      "status": "omitted",
+      "reason": "Reviewed against v6.2.0; not exposed by the current bridge scope."
+    },
+    {
+      "method": "GET",
+      "path": "/api/users",
+      "status": "omitted",
+      "reason": "Reviewed against v6.2.0; not exposed by the current bridge scope."
+    },
+    {
+      "method": "POST",
+      "path": "/api/users",
+      "status": "omitted",
+      "reason": "Reviewed against v6.2.0; not exposed by the current bridge scope."
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/users/:id",
+      "status": "omitted",
+      "reason": "Reviewed against v6.2.0; not exposed by the current bridge scope."
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/:id",
+      "status": "omitted",
+      "reason": "Reviewed against v6.2.0; not exposed by the current bridge scope."
+    },
+    {
+      "method": "PUT",
+      "path": "/api/users/:id",
+      "status": "omitted",
+      "reason": "Reviewed against v6.2.0; not exposed by the current bridge scope."
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/users/:id/twofa",
+      "status": "omitted",
+      "reason": "Reviewed against v6.2.0; not exposed by the current bridge scope."
+    },
+    {
+      "method": "PUT",
+      "path": "/api/users/:id/twofa",
+      "status": "omitted",
+      "reason": "Reviewed against v6.2.0; not exposed by the current bridge scope."
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/:id/twofa/totp",
+      "status": "omitted",
+      "reason": "Reviewed against v6.2.0; not exposed by the current bridge scope."
+    }
+  ]
+}

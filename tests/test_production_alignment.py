@@ -108,8 +108,33 @@ async def test_capability_report_is_secret_safe(
     assert result["success"] is True
     assert result["readOnly"] is True
     assert result["upstream"]["baseUrlHost"] == "listmonk.example.com"
+    expected = result["upstream"]["apiCompatibility"]["expected"]
+    assert expected["contractId"].startswith("lm-api:sha256:")
+    assert expected["sourceRelease"] == "v6.2.0"
     assert "super-secret" not in encoded
     assert result["riskClassCounts"]
+
+
+@pytest.mark.asyncio
+async def test_capability_report_probes_connected_listmonk_compatibility(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class CompatibleClient:
+        async def health_check(self) -> dict[str, Any]:
+            return {"data": True}
+
+        async def get_about(self) -> dict[str, Any]:
+            return {"version": "v6.2.0", "host": {"hostname": "secret-host"}}
+
+    monkeypatch.setattr(server, "get_client", lambda: CompatibleClient())
+
+    result = await server.listmonk_capability_report(includePermissionProbe=True)
+    detected = result["upstream"]["apiCompatibility"]["detected"]
+
+    assert result["upstream"]["health"] == "ok"
+    assert detected["reportedVersion"] == "v6.2.0"
+    assert detected["status"] == "compatible"
+    assert "secret-host" not in json.dumps(result)
 
 
 @pytest.mark.asyncio

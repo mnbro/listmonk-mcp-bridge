@@ -333,6 +333,9 @@ class ListmonkClient:
     async def get_server_config(self) -> dict[str, Any]:
         return await self._request("GET", "/api/config")
 
+    async def get_about(self) -> dict[str, Any]:
+        return await self._request("GET", "/api/about")
+
     async def get_i18n_language(self, lang: str) -> dict[str, Any]:
         return await self._request("GET", f"/api/lang/{lang}")
 

@@ -22,6 +22,10 @@ from uuid import uuid4
 import typer
 from pydantic import Field, WithJsonSchema
 
+from .api_compatibility import (
+    evaluate_listmonk_release,
+    expected_api_compatibility,
+)
 from .client import (
     ListmonkAPIError,
     ListmonkClient,
@@ -3517,6 +3521,10 @@ async def listmonk_capability_report(
 ) -> dict[str, Any]:
     warnings: list[str] = []
     health = "not_checked"
+    detected_compatibility: dict[str, Any] = {
+        "status": "not_checked",
+        "reason": "Set includePermissionProbe=true to inspect the connected Listmonk release.",
+    }
     if includePermissionProbe:
         try:
             await get_client().health_check()
@@ -3524,6 +3532,20 @@ async def listmonk_capability_report(
         except Exception as exc:  # noqa: BLE001
             health = "failed"
             warnings.append(f"Read-only health probe failed: {type(exc).__name__}")
+        try:
+            about = await get_client().get_about()
+            reported_version = about.get("version")
+            detected_compatibility = evaluate_listmonk_release(
+                reported_version if isinstance(reported_version, str) else None
+            )
+        except Exception as exc:  # noqa: BLE001
+            detected_compatibility = {
+                "status": "unknown",
+                "reason": f"Listmonk version probe failed: {type(exc).__name__}",
+            }
+            warnings.append(
+                f"Read-only Listmonk version probe failed: {type(exc).__name__}"
+            )
     counts: dict[str, int] = {}
     for risk in TOOL_RISK_CLASSES.values():
         counts[risk] = counts.get(risk, 0) + 1
@@ -3565,7 +3587,14 @@ async def listmonk_capability_report(
             "maxLimit": _max_limit(),
             "maxResponseBytes": _max_response_bytes(),
         },
-        "upstream": {"baseUrlHost": _base_url_host(), "health": health},
+        "upstream": {
+            "baseUrlHost": _base_url_host(),
+            "health": health,
+            "apiCompatibility": {
+                "expected": expected_api_compatibility(),
+                "detected": detected_compatibility,
+            },
+        },
         "warnings": warnings,
     }
 
