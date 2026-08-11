@@ -575,7 +575,7 @@ wheels = [
 
 [[package]]
 name = "listmonk-mcp-bridge"
-version = "0.4.32"
+version = "0.4.33"
 source = { editable = "." }
 dependencies = [
     { name = "httpx" },
