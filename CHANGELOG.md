@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.34](https://github.com/mnbro/listmonk-mcp-bridge/compare/v0.4.33...v0.4.34) (2026-08-11)
+
+
+### Features
+
+* automate Listmonk API compatibility ([#69](https://github.com/mnbro/listmonk-mcp-bridge/issues/69)) ([99608eb](https://github.com/mnbro/listmonk-mcp-bridge/commit/99608eb0cf1ffe552ba4ee14f7937d8ff988393e))
+
 ## [0.4.33](https://github.com/mnbro/listmonk-mcp-bridge/compare/v0.4.32...v0.4.33) (2026-08-11)
 
 

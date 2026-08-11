@@ -18,6 +18,7 @@ fingerprints.
 
 | Bridge release | API contract | Source snapshot | Verification |
 | --- | --- | --- | --- |
+| [`v0.4.34`](https://github.com/mnbro/listmonk-mcp-bridge/releases/tag/v0.4.34) | `lm-api:c66622870912` | [`v6.2.0`](https://github.com/knadh/listmonk/releases/tag/v6.2.0) | `source-verified` |
 | [`v0.4.33`](https://github.com/mnbro/listmonk-mcp-bridge/releases/tag/v0.4.33) | `lm-api:c66622870912` | [`v6.2.0`](https://github.com/knadh/listmonk/releases/tag/v6.2.0) | `source-verified` |
 | [`v0.4.32`](https://github.com/mnbro/listmonk-mcp-bridge/releases/tag/v0.4.32) | — | — | `not-recorded` |
 | [`v0.4.31`](https://github.com/mnbro/listmonk-mcp-bridge/releases/tag/v0.4.31) | — | — | `not-recorded` |
