@@ -104,7 +104,7 @@ def test_create_production_server_returns_registered_server() -> None:
 
 @pytest.mark.asyncio
 async def test_reported_tool_schemas_include_documented_arguments() -> None:
-    tools = {tool.name: tool.inputSchema for tool in await server.mcp.list_tools()}
+    tools = {tool.name: tool.input_schema for tool in await server.mcp.list_tools()}
 
     assert set(tools["update_settings"]["properties"]) == {"settings", "confirm"}
     assert tools["update_settings"]["required"] == ["settings"]
@@ -200,10 +200,10 @@ async def test_destructive_tools_are_annotated_and_require_confirmation() -> Non
     for tool_name in destructive_tools:
         tool = tools[tool_name]
         assert tool.annotations is not None
-        assert tool.annotations.destructiveHint is True
-        assert tool.annotations.readOnlyHint is False
-        assert tool.annotations.idempotentHint is False
-        assert tool.inputSchema["properties"]["confirm"]["type"] == "boolean"
+        assert tool.annotations.destructive_hint is True
+        assert tool.annotations.read_only_hint is False
+        assert tool.annotations.idempotent_hint is False
+        assert tool.input_schema["properties"]["confirm"]["type"] == "boolean"
 
     result = await server.delete_campaign(campaign_id=7)
 
@@ -296,19 +296,19 @@ async def test_email_sending_tools_are_marked_side_effecting_and_require_confirm
     for tool_name in email_tools:
         tool = tools[tool_name]
         assert tool.annotations is not None
-        assert tool.annotations.readOnlyHint is False
-        assert tool.annotations.destructiveHint is False
-        assert tool.annotations.idempotentHint is False
-        assert tool.annotations.openWorldHint is True
-        assert tool.inputSchema["properties"]["confirm_send"]["type"] == "boolean"
+        assert tool.annotations.read_only_hint is False
+        assert tool.annotations.destructive_hint is False
+        assert tool.annotations.idempotent_hint is False
+        assert tool.annotations.open_world_hint is True
+        assert tool.input_schema["properties"]["confirm_send"]["type"] == "boolean"
 
     safe_test_tool = tools["safe_test_campaign"]
     assert safe_test_tool.annotations is not None
-    assert safe_test_tool.annotations.readOnlyHint is False
-    assert safe_test_tool.annotations.destructiveHint is False
-    assert safe_test_tool.annotations.idempotentHint is False
-    assert safe_test_tool.annotations.openWorldHint is True
-    assert safe_test_tool.inputSchema["properties"]["confirmSend"]["type"] == "boolean"
+    assert safe_test_tool.annotations.read_only_hint is False
+    assert safe_test_tool.annotations.destructive_hint is False
+    assert safe_test_tool.annotations.idempotent_hint is False
+    assert safe_test_tool.annotations.open_world_hint is True
+    assert safe_test_tool.input_schema["properties"]["confirmSend"]["type"] == "boolean"
 
     result = await server.send_campaign(campaign_id=7)
 
@@ -538,9 +538,9 @@ async def test_read_only_tools_are_explicitly_annotated() -> None:
     for tool_name in read_only_tools:
         tool = tools[tool_name]
         assert tool.annotations is not None
-        assert tool.annotations.readOnlyHint is True
-        assert tool.annotations.destructiveHint is False
-        assert tool.annotations.idempotentHint is True
+        assert tool.annotations.read_only_hint is True
+        assert tool.annotations.destructive_hint is False
+        assert tool.annotations.idempotent_hint is True
 
 
 def test_success_response() -> None:

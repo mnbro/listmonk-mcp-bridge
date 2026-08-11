@@ -9,6 +9,20 @@ uv run mkdocs build --strict
 uv build
 ```
 
+## MCP SDK Compatibility
+
+The bridge supports the official MCP Python SDK `>=2.0,<3`. Production code uses
+only the SDK's public API, and every direct `mcp` import is confined to
+`src/listmonk_mcp/mcp_adapter.py`. Keep bridge policy and tool implementations
+independent of SDK model names so a future major-version migration remains
+localized to that adapter.
+
+CI checks both MCP 2.0.0 and the newest available v2 release. The protocol suite
+exercises negotiated modern mode and explicit legacy mode, cancellation, server
+lifespan cleanup, and the installed wheel with Python warnings treated as errors.
+When changing the SDK boundary, update the lockfile and keep all of these checks
+passing before release.
+
 ## MCP Inspector Validation
 
 Use MCP Inspector before release or when changing tool registration:
