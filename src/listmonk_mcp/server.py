@@ -805,6 +805,23 @@ def _int_field(payload: dict[str, Any], field: str) -> int:
     return 0
 
 
+def _analytics_total(value: Any) -> int:
+    """Sum Listmonk analytics buckets instead of counting bucket rows."""
+
+    if isinstance(value, list):
+        return sum(
+            _int_field(item, "count") if "count" in item else 1
+            for item in value
+            if isinstance(item, dict)
+        )
+    if isinstance(value, dict):
+        if "total" in value:
+            return _int_field(value, "total")
+        if "count" in value:
+            return _int_field(value, "count")
+    return 0
+
+
 async def _lookup_subscriber_by_email(email: str) -> dict[str, Any] | None:
     client = get_client()
     if hasattr(client, "get_subscriber_by_email"):
@@ -1171,7 +1188,12 @@ async def update_subscriber(
         return blocked
     return await _call(
         lambda: get_client().update_subscriber(
-            subscriber_id, email, name, status, lists, None, attribs
+            subscriber_id,
+            email=email,
+            name=name,
+            status=status,
+            lists=lists,
+            attribs=attribs,
         )
     )
 
@@ -1357,10 +1379,11 @@ async def get_bounces(
     order: str = "desc",
     campaign_id: int | None = None,
     subscriber_id: int | None = None,
+    source: str | None = None,
 ) -> dict[str, Any]:
     return await _call(
         lambda: get_client().get_bounces(
-            page, per_page, order_by, order, campaign_id, subscriber_id
+            page, per_page, order_by, order, campaign_id, subscriber_id, source
         )
     )
 
@@ -1514,12 +1537,14 @@ async def get_campaigns(
     per_page: int = 20,
     order_by: str = "created_at",
     order: str = "desc",
-    status: str | None = None,
-    type: str | None = None,
+    status: str | list[str] | None = None,
+    tags: list[str] | None = None,
+    query: str | None = None,
+    no_body: bool | None = None,
 ) -> dict[str, Any]:
     return await _call(
         lambda: get_client().get_campaigns(
-            page, per_page, order_by, order, status, type
+            page, per_page, order_by, order, status, tags, query, no_body
         )
     )
 
@@ -1541,7 +1566,6 @@ async def create_campaign(
     altbody: str | None = None,
     template_id: int | None = None,
     tags: list[str] | None = None,
-    send_later: bool | None = None,
     send_at: str | None = None,
     messenger: str | None = None,
     headers: list[dict[str, Any]] | None = None,
@@ -1559,7 +1583,6 @@ async def create_campaign(
             altbody=altbody,
             template_id=template_id,
             tags=tags,
-            send_later=send_later,
             send_at=send_at,
             messenger=messenger,
             headers=headers,
@@ -1755,7 +1778,7 @@ async def archive_campaign(campaign_id: int, archive: bool = True) -> dict[str, 
     return await _call(lambda: get_client().archive_campaign(campaign_id, archive))
 
 
-@listmonk_tool(annotations=MUTATING)
+@listmonk_tool(annotations=READ_ONLY)
 async def convert_campaign_content(campaign_id: int, editor: str) -> dict[str, Any]:
     return await _call(
         lambda: get_client().convert_campaign_content(campaign_id, editor)
@@ -1825,12 +1848,8 @@ async def delete_template(template_id: int, confirm: bool = False) -> dict[str, 
 
 
 @listmonk_tool(annotations=READ_ONLY)
-async def preview_template(
-    template_id: int, body: str, content_type: str = "html"
-) -> dict[str, Any]:
-    return await _call(
-        lambda: get_client().preview_template(template_id, body, content_type)
-    )
+async def preview_template(template_id: int, body: str) -> dict[str, Any]:
+    return await _call(lambda: get_client().preview_template(template_id, body))
 
 
 @listmonk_tool(annotations=READ_ONLY)
@@ -1889,8 +1908,10 @@ async def send_transactional_email(
 
 
 @listmonk_tool(annotations=READ_ONLY)
-async def get_media_list() -> dict[str, Any]:
-    return await _call(lambda: get_client().get_media())
+async def get_media_list(
+    page: int = 1, per_page: int = 20, query: str | None = None
+) -> dict[str, Any]:
+    return await _call(lambda: get_client().get_media(page, per_page, query))
 
 
 @listmonk_tool(annotations=READ_ONLY)
@@ -1901,11 +1922,6 @@ async def get_media_file(media_id: int) -> dict[str, Any]:
 @listmonk_tool(annotations=MUTATING)
 async def upload_media_file(file_path: str, title: str | None = None) -> dict[str, Any]:
     return await _call(lambda: get_client().upload_media(file_path, title))
-
-
-@listmonk_tool(annotations=MUTATING)
-async def rename_media(media_id: int, new_title: str) -> dict[str, Any]:
-    return await _call(lambda: get_client().update_media(media_id, new_title))
 
 
 @listmonk_tool(annotations=DESTRUCTIVE)
@@ -2468,7 +2484,8 @@ async def campaign_performance_summary(
     warnings: list[str] = []
     analytics_source = "analytics"
     analytics_not_found = False
-    for metric in ("views", "clicks", "bounces", "unsubscribes"):
+    unavailable.append("unsubscribes")
+    for metric in ("views", "clicks", "bounces", "links"):
         try:
             metrics[metric] = _normalize_listmonk_response(
                 await get_client().get_campaign_analytics(
@@ -2495,27 +2512,9 @@ async def campaign_performance_summary(
             "Detailed analytics endpoint unavailable; using aggregate campaign fields."
         )
     else:
-        views = (
-            len(metrics.get("views", []))
-            if isinstance(metrics.get("views"), list)
-            else int(metrics.get("views", {}).get("total", 0))
-            if isinstance(metrics.get("views"), dict)
-            else 0
-        )
-        clicks = (
-            len(metrics.get("clicks", []))
-            if isinstance(metrics.get("clicks"), list)
-            else int(metrics.get("clicks", {}).get("total", 0))
-            if isinstance(metrics.get("clicks"), dict)
-            else 0
-        )
-        bounces = (
-            len(metrics.get("bounces", []))
-            if isinstance(metrics.get("bounces"), list)
-            else int(metrics.get("bounces", {}).get("total", 0))
-            if isinstance(metrics.get("bounces"), dict)
-            else 0
-        )
+        views = _analytics_total(metrics.get("views"))
+        clicks = _analytics_total(metrics.get("clicks"))
+        bounces = _analytics_total(metrics.get("bounces"))
         sent = _int_field(campaign, "sent")
         to_send = _int_field(campaign, "to_send")
     recommendations = []
@@ -2525,7 +2524,16 @@ async def campaign_performance_summary(
         recommendations.append(
             "Some metrics are unavailable from the Listmonk API response"
         )
-    unsubscribes = metrics.get("unsubscribes", 0)
+    link_rows = metrics.get("links")
+    top_links = (
+        sorted(
+            [item for item in link_rows if isinstance(item, dict)],
+            key=lambda item: _int_field(item, "count"),
+            reverse=True,
+        )
+        if isinstance(link_rows, list)
+        else []
+    )
     return {
         "success": True,
         "campaignId": campaignId,
@@ -2536,8 +2544,8 @@ async def campaign_performance_summary(
         "bounces": bounces,
         "sent": sent,
         "toSend": to_send,
-        "unsubscribes": unsubscribes,
-        "topLinks": [],
+        "unsubscribes": 0,
+        "topLinks": top_links,
         "engagementRate": round(clicks / max(views, 1), 4),
         "recommendations": recommendations,
         "unavailableMetrics": unavailable,
@@ -2575,7 +2583,6 @@ async def export_engagement_events(
     events: list[dict[str, Any]] = []
     unsupported: list[dict[str, str]] = []
     warnings: list[str] = []
-    campaign = _one_from_response(await get_client().get_campaign(campaignId)) or {}
     for event_type in requested:
         metric = type_map.get(event_type)
         if metric is None:
@@ -2587,49 +2594,26 @@ async def export_engagement_events(
             )
             continue
         try:
-            analytics = _normalize_listmonk_response(
-                await get_client().get_campaign_analytics(
-                    campaignId, metric, fromDate, toDate
-                )
+            await get_client().get_campaign_analytics(
+                campaignId, metric, fromDate, toDate
             )
         except (ListmonkAPIError, ResourceNotFoundError) as exc:
             if isinstance(exc, ResourceNotFoundError) or exc.status_code == 404:
                 _mark_detailed_analytics_unavailable(event_type, unsupported, warnings)
                 continue
             raise
-        if not isinstance(analytics, list):
-            unsupported.append(
-                {
-                    "eventType": event_type,
-                    "reason": "Listmonk API returned only aggregate analytics for this event type",
-                }
-            )
-            continue
-        for item in analytics:
-            if isinstance(item, dict):
-                events.append(
-                    {
-                        "eventType": event_type,
-                        "eventId": str(item.get("id") or uuid4().hex),
-                        "occurredAt": item.get("created_at") or item.get("timestamp"),
-                        "subscriberId": item.get("subscriber_id"),
-                        "email": item.get("email"),
-                        "campaignId": campaignId,
-                        "campaignName": campaign.get("name"),
-                        "metadata": {
-                            key: value
-                            for key, value in item.items()
-                            if key
-                            not in {
-                                "id",
-                                "created_at",
-                                "timestamp",
-                                "subscriber_id",
-                                "email",
-                            }
-                        },
-                    }
-                )
+        unsupported.append(
+            {
+                "eventType": event_type,
+                "reason": "Listmonk exposes aggregate analytics buckets, not event-level subscriber records",
+            }
+        )
+        warning = (
+            "Listmonk analytics cannot be exported as subscriber-level events; "
+            "use campaign_performance_summary for aggregate metrics."
+        )
+        if warning not in warnings:
+            warnings.append(warning)
     return {
         "success": True,
         "supported": not unsupported,
@@ -3630,7 +3614,7 @@ async def get_list_by_id(list_id: str) -> str:
 
 @listmonk_resource("listmonk://list/{list_id}/subscribers")
 async def get_list_subscribers_resource(list_id: str) -> str:
-    return json.dumps(await get_client().get_list_subscribers(int(list_id)), indent=2)
+    return json.dumps(await _get_subscribers_for_list(int(list_id)), indent=2)
 
 
 @listmonk_resource("listmonk://templates")

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import json
+from datetime import UTC, datetime
 from html import escape
 from pathlib import Path
 from typing import Any
@@ -42,6 +44,19 @@ def listmonk_query_string_literal(value: str) -> str:
     return f"'{escaped}'"
 
 
+def normalize_rfc3339_date(value: str) -> str:
+    """Expand a date-only maintenance cutoff to Listmonk's RFC3339 format."""
+
+    if len(value) == 10:
+        try:
+            datetime.strptime(value, "%Y-%m-%d")
+        except ValueError:
+            pass
+        else:
+            return f"{value}T00:00:00Z"
+    return value
+
+
 def extract_campaign_list_ids(campaign: dict[str, Any]) -> list[int]:
     """Extract list IDs from Listmonk campaign payloads."""
 
@@ -59,6 +74,88 @@ def extract_campaign_list_ids(campaign: dict[str, Any]) -> list[int]:
         elif isinstance(value, str) and value.isdigit():
             ids.append(int(value))
     return ids
+
+
+def extract_related_ids(payload: dict[str, Any], field: str) -> list[int]:
+    """Extract integer IDs from Listmonk relationship arrays."""
+
+    ids: list[int] = []
+    for item in payload.get(field) or []:
+        value: Any
+        if isinstance(item, dict):
+            value = item.get("id")
+        else:
+            value = item
+        if isinstance(value, bool):
+            continue
+        if isinstance(value, int):
+            ids.append(value)
+        elif isinstance(value, str) and value.isdigit():
+            ids.append(int(value))
+    return ids
+
+
+def extract_bounce_campaign_id(bounce: dict[str, Any]) -> int | None:
+    """Extract a campaign ID from Listmonk's nested bounce representation."""
+
+    campaign_id = bounce.get("campaign_id")
+    if isinstance(campaign_id, int) and not isinstance(campaign_id, bool):
+        return campaign_id
+    campaign = bounce.get("campaign")
+    if isinstance(campaign, str):
+        try:
+            campaign = json.loads(campaign)
+        except json.JSONDecodeError:
+            return None
+    if isinstance(campaign, dict):
+        value = campaign.get("id")
+        if isinstance(value, int) and not isinstance(value, bool):
+            return value
+    return None
+
+
+def response_object(response: dict[str, Any], resource: str) -> dict[str, Any]:
+    """Return a single Listmonk response object or fail with a useful error."""
+
+    data = response.get("data")
+    if not isinstance(data, dict):
+        raise ListmonkAPIError(f"Listmonk returned no {resource} object")
+    return data
+
+
+def campaign_update_payload(
+    campaign: dict[str, Any], overrides: dict[str, Any]
+) -> dict[str, Any]:
+    """Build Listmonk's full campaign PUT payload without losing relationships."""
+
+    template = campaign.get("template")
+    template_id = campaign.get("template_id")
+    if template_id is None and isinstance(template, dict):
+        template_id = template.get("id")
+
+    payload = {
+        "name": campaign.get("name"),
+        "subject": campaign.get("subject"),
+        "lists": extract_related_ids(campaign, "lists"),
+        "from_email": campaign.get("from_email"),
+        "body": campaign.get("body"),
+        "altbody": campaign.get("altbody"),
+        "content_type": campaign.get("content_type"),
+        "send_at": campaign.get("send_at"),
+        "headers": campaign.get("headers") or [],
+        "attribs": campaign.get("attribs") or {},
+        "tags": campaign.get("tags") or [],
+        "messenger": campaign.get("messenger"),
+        "template_id": template_id,
+        "archive": campaign.get("archive", False),
+        "archive_slug": campaign.get("archive_slug"),
+        "archive_template_id": campaign.get("archive_template_id"),
+        "archive_meta": campaign.get("archive_meta") or {},
+        "media": extract_related_ids(campaign, "media"),
+        "body_source": campaign.get("body_source"),
+    }
+    payload.update(overrides)
+    return payload
 
 
 def campaign_test_payload(
@@ -134,7 +231,6 @@ class ListmonkClient:
             headers={
                 "Accept": "application/json",
                 "Authorization": f"token {self.config.username}:{self.config.password}",
-                "Content-Type": "application/json",
                 "User-Agent": f"listmonk-mcp-bridge/{__version__}",
             },
         )
@@ -325,7 +421,6 @@ class ListmonkClient:
         name: str | None = None,
         status: str | None = None,
         lists: list[int] | None = None,
-        list_uuids: list[str] | None = None,
         attribs: dict[str, Any] | None = None,
         preconfirm_subscriptions: bool | None = None,
     ) -> dict[str, Any]:
@@ -335,7 +430,6 @@ class ListmonkClient:
                 "name": name,
                 "status": status,
                 "lists": lists,
-                "list_uuids": list_uuids,
                 "attribs": attribs,
                 "preconfirm_subscriptions": preconfirm_subscriptions,
             }
@@ -392,7 +486,7 @@ class ListmonkClient:
 
     async def blocklist_subscribers_by_query(self, query: str) -> dict[str, Any]:
         return await self._request(
-            "POST", "/api/subscribers/query/blocklist", json_data={"query": query}
+            "PUT", "/api/subscribers/query/blocklist", json_data={"query": query}
         )
 
     async def manage_subscriber_lists_by_query(
@@ -444,7 +538,41 @@ class ListmonkClient:
         order: str = "desc",
         campaign_id: int | None = None,
         subscriber_id: int | None = None,
+        source: str | None = None,
     ) -> dict[str, Any]:
+        if subscriber_id is not None:
+            response = await self.get_subscriber_bounces(subscriber_id)
+            data = response.get("data")
+            raw_results = (
+                data.get("results", [])
+                if isinstance(data, dict)
+                else data
+                if isinstance(data, list)
+                else []
+            )
+            results = [item for item in raw_results if isinstance(item, dict)]
+            if campaign_id is not None:
+                results = [
+                    item
+                    for item in results
+                    if extract_bounce_campaign_id(item) == campaign_id
+                ]
+            if source is not None:
+                results = [item for item in results if item.get("source") == source]
+            results.sort(
+                key=lambda item: str(item.get(order_by) or ""),
+                reverse=order == "desc",
+            )
+            total = len(results)
+            start = max(page - 1, 0) * per_page
+            return {
+                "data": {
+                    "results": results[start : start + per_page],
+                    "total": total,
+                    "page": page,
+                    "per_page": per_page,
+                }
+            }
         return await self._request(
             "GET",
             "/api/bounces",
@@ -455,7 +583,7 @@ class ListmonkClient:
                     "order_by": order_by,
                     "order": order,
                     "campaign_id": campaign_id,
-                    "subscriber_id": subscriber_id,
+                    "source": source,
                 }
             ),
         )
@@ -534,10 +662,16 @@ class ListmonkClient:
         tags: list[str] | None = None,
         description: str | None = None,
     ) -> dict[str, Any]:
-        return await self._request(
-            "PUT",
-            f"/api/lists/{list_id}",
-            json_data=compact_payload(
+        current = response_object(await self.get_list(list_id), "list")
+        payload = {
+            "name": current.get("name"),
+            "type": current.get("type"),
+            "optin": current.get("optin"),
+            "tags": current.get("tags") or [],
+            "description": current.get("description") or "",
+        }
+        payload.update(
+            compact_payload(
                 {
                     "name": name,
                     "type": type,
@@ -545,7 +679,12 @@ class ListmonkClient:
                     "tags": tags,
                     "description": description,
                 }
-            ),
+            )
+        )
+        return await self._request(
+            "PUT",
+            f"/api/lists/{list_id}",
+            json_data=payload,
         )
 
     async def delete_list(self, list_id: int) -> dict[str, Any]:
@@ -577,17 +716,17 @@ class ListmonkClient:
             return await self._request_files(
                 "POST",
                 "/api/import/subscribers",
-                data={key: str(value) for key, value in params.items()},
+                data={"params": json.dumps(params, separators=(",", ":"))},
                 files={"file": (path.name, handle, "text/csv")},
             )
 
     async def get_list_subscribers(
         self, list_id: int, page: int = 1, per_page: int = 20
     ) -> dict[str, Any]:
-        return await self._request(
-            "GET",
-            f"/api/lists/{list_id}/subscribers",
-            params={"page": page, "per_page": per_page},
+        return await self.get_subscribers(
+            page=page,
+            per_page=per_page,
+            list_ids=[list_id],
         )
 
     async def get_campaigns(
@@ -596,8 +735,10 @@ class ListmonkClient:
         per_page: int = 20,
         order_by: str = "created_at",
         order: str = "desc",
-        status: str | None = None,
-        type: str | None = None,
+        status: str | list[str] | None = None,
+        tags: list[str] | None = None,
+        query: str | None = None,
+        no_body: bool | None = None,
     ) -> dict[str, Any]:
         return await self._request(
             "GET",
@@ -609,7 +750,9 @@ class ListmonkClient:
                     "order_by": order_by,
                     "order": order,
                     "status": status,
-                    "type": type,
+                    "tag": tags,
+                    "query": query,
+                    "no_body": no_body,
                 }
             ),
         )
@@ -635,7 +778,6 @@ class ListmonkClient:
         altbody: str | None = None,
         template_id: int | None = None,
         tags: list[str] | None = None,
-        send_later: bool | None = None,
         send_at: str | None = None,
         messenger: str | None = None,
         headers: list[dict[str, Any]] | None = None,
@@ -657,7 +799,6 @@ class ListmonkClient:
                 "altbody": altbody,
                 "template_id": template_id,
                 "tags": tags or [],
-                "send_later": send_later,
                 "send_at": send_at,
                 "messenger": messenger,
                 "headers": headers,
@@ -666,8 +807,11 @@ class ListmonkClient:
         return await self._request("POST", "/api/campaigns", json_data=payload)
 
     async def update_campaign(self, campaign_id: int, **fields: Any) -> dict[str, Any]:
+        current = response_object(await self.get_campaign(campaign_id), "campaign")
         return await self._request(
-            "PUT", f"/api/campaigns/{campaign_id}", json_data=compact_payload(fields)
+            "PUT",
+            f"/api/campaigns/{campaign_id}",
+            json_data=campaign_update_payload(current, fields),
         )
 
     async def delete_campaign(self, campaign_id: int) -> dict[str, Any]:
@@ -690,10 +834,11 @@ class ListmonkClient:
         )
 
     async def schedule_campaign(self, campaign_id: int, send_at: str) -> dict[str, Any]:
+        await self.update_campaign(campaign_id, send_at=send_at)
         return await self._request(
             "PUT",
             f"/api/campaigns/{campaign_id}/status",
-            json_data={"status": "scheduled", "send_at": send_at},
+            json_data={"status": "scheduled"},
         )
 
     async def update_campaign_status(
@@ -713,10 +858,10 @@ class ListmonkClient:
         content_type: str = "html",
         template_id: int | None = None,
     ) -> dict[str, Any]:
-        return await self._request(
+        return await self._request_form(
             "POST",
             f"/api/campaigns/{campaign_id}/preview",
-            json_data=compact_payload(
+            data=compact_payload(
                 {"body": body, "content_type": content_type, "template_id": template_id}
             ),
         )
@@ -724,18 +869,28 @@ class ListmonkClient:
     async def preview_campaign_text(
         self, campaign_id: int, body: str, content_type: str = "plain"
     ) -> dict[str, Any]:
-        return await self._request(
+        return await self._request_form(
             "POST",
             f"/api/campaigns/{campaign_id}/text",
-            json_data={"body": body, "content_type": content_type},
+            data={"body": body, "content_type": content_type},
         )
 
     async def get_running_campaign_stats(
         self, campaign_ids: list[int]
     ) -> dict[str, Any]:
-        return await self._request(
-            "GET", "/api/campaigns/running/stats", params={"id": campaign_ids}
-        )
+        response = await self._request("GET", "/api/campaigns/running/stats")
+        data = response.get("data")
+        if isinstance(data, list):
+            requested = set(campaign_ids)
+            response = {
+                **response,
+                "data": [
+                    item
+                    for item in data
+                    if isinstance(item, dict) and item.get("id") in requested
+                ],
+            }
+        return response
 
     async def get_campaign_analytics(
         self,
@@ -744,26 +899,44 @@ class ListmonkClient:
         from_date: str | None = None,
         to_date: str | None = None,
     ) -> dict[str, Any]:
+        start = from_date or "1970-01-01"
+        end = to_date or datetime.now(UTC).replace(microsecond=0).isoformat().replace(
+            "+00:00", "Z"
+        )
         return await self._request(
             "GET",
-            f"/api/campaigns/{campaign_id}/analytics/{type}",
-            params=compact_payload({"from": from_date, "to": to_date}),
+            f"/api/campaigns/analytics/{type}",
+            params={"id": campaign_id, "from": start, "to": end},
         )
 
     async def archive_campaign(
         self, campaign_id: int, archive: bool = True
     ) -> dict[str, Any]:
+        campaign = response_object(await self.get_campaign(campaign_id), "campaign")
         return await self._request(
             "PUT",
             f"/api/campaigns/{campaign_id}/archive",
-            json_data={"archive": archive},
+            json_data={
+                "archive": archive,
+                "archive_template_id": campaign.get("archive_template_id"),
+                "archive_meta": campaign.get("archive_meta") or {},
+                "archive_slug": campaign.get("archive_slug") or "",
+            },
         )
 
     async def convert_campaign_content(
         self, campaign_id: int, editor: str
     ) -> dict[str, Any]:
+        campaign = response_object(await self.get_campaign(campaign_id), "campaign")
         return await self._request(
-            "PUT", f"/api/campaigns/{campaign_id}/content/{editor}"
+            "POST",
+            f"/api/campaigns/{campaign_id}/content",
+            json_data={
+                "id": campaign_id,
+                "body": campaign.get("body") or "",
+                "from": campaign.get("content_type"),
+                "to": editor,
+            },
         )
 
     async def test_campaign(
@@ -802,7 +975,7 @@ class ListmonkClient:
         is_default: bool = False,
         body_source: str | None = None,
     ) -> dict[str, Any]:
-        return await self._request(
+        response = await self._request(
             "POST",
             "/api/templates",
             json_data=compact_payload(
@@ -811,27 +984,58 @@ class ListmonkClient:
                     "subject": subject,
                     "body": body,
                     "type": type,
-                    "is_default": is_default,
                     "body_source": body_source,
                 }
             ),
         )
+        if not is_default:
+            return response
+        template = response_object(response, "template")
+        template_id = template.get("id")
+        if not isinstance(template_id, int) or isinstance(template_id, bool):
+            raise ListmonkAPIError("Listmonk returned no template ID")
+        await self.set_default_template(template_id)
+        return await self.get_template(template_id)
 
     async def update_template(self, template_id: int, **fields: Any) -> dict[str, Any]:
-        return await self._request(
-            "PUT", f"/api/templates/{template_id}", json_data=compact_payload(fields)
+        current = response_object(await self.get_template(template_id), "template")
+        requested_type = fields.pop("type", None)
+        if requested_type is not None and requested_type != current.get("type"):
+            raise ListmonkAPIError(
+                "Listmonk does not support changing an existing template's type"
+            )
+        requested_default = fields.pop("is_default", None)
+        if requested_default is False and current.get("is_default") is True:
+            raise ListmonkAPIError(
+                "Listmonk cannot unset a default template without selecting another default"
+            )
+        payload = {
+            "name": current.get("name"),
+            "subject": current.get("subject") or "",
+            "body": current.get("body") or "",
+            "type": current.get("type"),
+            "body_source": current.get("body_source"),
+        }
+        payload.update(compact_payload(fields))
+        response = await self._request(
+            "PUT", f"/api/templates/{template_id}", json_data=payload
         )
+        if requested_default is True and current.get("is_default") is not True:
+            await self.set_default_template(template_id)
+            return await self.get_template(template_id)
+        return response
 
     async def delete_template(self, template_id: int) -> dict[str, Any]:
         return await self._request("DELETE", f"/api/templates/{template_id}")
 
     async def preview_template(
-        self, template_id: int, body: str, content_type: str = "html"
+        self, template_id: int, body: str
     ) -> dict[str, Any]:
+        template = response_object(await self.get_template(template_id), "template")
         return await self._request_form(
             "POST",
-            f"/api/templates/{template_id}/preview",
-            data={"body": body, "content_type": content_type},
+            "/api/templates/preview",
+            data={"body": body, "template_type": template.get("type") or "campaign"},
         )
 
     async def get_template_preview(self, template_id: int) -> dict[str, Any]:
@@ -846,8 +1050,16 @@ class ListmonkClient:
             "POST", "/api/tx", json_data=compact_payload(payload)
         )
 
-    async def get_media(self) -> dict[str, Any]:
-        return await self._request("GET", "/api/media")
+    async def get_media(
+        self, page: int = 1, per_page: int = 20, query: str | None = None
+    ) -> dict[str, Any]:
+        return await self._request(
+            "GET",
+            "/api/media",
+            params=compact_payload(
+                {"page": page, "per_page": per_page, "query": query}
+            ),
+        )
 
     async def get_media_file(self, media_id: int) -> dict[str, Any]:
         return await self._request("GET", f"/api/media/{media_id}")
@@ -860,14 +1072,9 @@ class ListmonkClient:
             return await self._request_files(
                 "POST",
                 "/api/media",
-                data=compact_payload({"title": title}),
-                files={"file": (path.name, handle)},
+                data={},
+                files={"file": (title or path.name, handle)},
             )
-
-    async def update_media(self, media_id: int, title: str) -> dict[str, Any]:
-        return await self._request(
-            "PUT", f"/api/media/{media_id}", json_data={"title": title}
-        )
 
     async def delete_media(self, media_id: int) -> dict[str, Any]:
         return await self._request("DELETE", f"/api/media/{media_id}")
@@ -887,17 +1094,17 @@ class ListmonkClient:
     async def delete_campaign_analytics(
         self, type: str, before_date: str
     ) -> dict[str, Any]:
-        return await self._request(
+        return await self._request_form(
             "DELETE",
             f"/api/maintenance/analytics/{type}",
-            json_data={"before_date": before_date},
+            data={"before_date": normalize_rfc3339_date(before_date)},
         )
 
     async def delete_unconfirmed_subscriptions(
         self, before_date: str
     ) -> dict[str, Any]:
-        return await self._request(
+        return await self._request_form(
             "DELETE",
             "/api/maintenance/subscriptions/unconfirmed",
-            json_data={"before_date": before_date},
+            data={"before_date": normalize_rfc3339_date(before_date)},
         )

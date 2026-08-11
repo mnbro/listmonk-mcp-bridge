@@ -136,7 +136,6 @@ class UpdateSubscriberModel(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=200)
     status: SubscriberStatusEnum | None = None
     lists: list[int] | None = None
-    list_uuids: list[str] | None = None
     attribs: dict[str, Any] | None = None
     preconfirm_subscriptions: bool | None = None
 
@@ -174,7 +173,6 @@ class CreateCampaignModel(BaseModel):
     altbody: str | None = None
     template_id: int | None = None
     tags: list[str] = Field(default_factory=list)
-    send_later: bool | None = None
     send_at: datetime | None = None
     messenger: str | None = None
     headers: list[dict[str, Any]] | None = None
@@ -200,7 +198,6 @@ class UpdateCampaignModel(BaseModel):
     altbody: str | None = None
     template_id: int | None = None
     tags: list[str] | None = None
-    send_later: bool | None = None
     send_at: datetime | None = None
     messenger: str | None = None
     content_type: ContentTypeEnum | None = None

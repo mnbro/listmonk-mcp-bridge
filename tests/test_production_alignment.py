@@ -161,3 +161,34 @@ async def test_get_retries_but_post_does_not_retry() -> None:
         await post_client._request("POST", "/api/campaigns/1/status")
     assert post_transport.calls == ["POST"]
     await post_client.close()
+
+
+@pytest.mark.asyncio
+async def test_client_uses_body_specific_content_types() -> None:
+    requests: list[httpx.Request] = []
+
+    async def capture(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(200, json={"data": True})
+
+    config = Config(url="http://localhost:9000", username="u", password="p")
+    client = ListmonkClient(config)
+    await client.connect()
+    assert client._client is not None
+    assert "content-type" not in client._client.headers
+    await client.close()
+
+    client._client = httpx.AsyncClient(transport=httpx.MockTransport(capture))
+    await client._request("POST", "/api/settings", json_data={"key": "value"})
+    await client._request_form("DELETE", "/api/maintenance/test", {"id": "1"})
+    await client._request_files(
+        "POST",
+        "/api/import/subscribers",
+        data={"params": "{}"},
+        files={"file": ("subscribers.csv", b"email\n", "text/csv")},
+    )
+
+    assert requests[0].headers["content-type"] == "application/json"
+    assert requests[1].headers["content-type"] == "application/x-www-form-urlencoded"
+    assert requests[2].headers["content-type"].startswith("multipart/form-data; boundary=")
+    await client.close()

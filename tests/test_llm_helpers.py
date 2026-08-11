@@ -187,12 +187,25 @@ class HelperClient:
         del campaign_id, from_date, to_date
         if type == "views":
             return {
-                "data": [{"id": "v1", "subscriber_id": 1, "email": "jane@example.com"}]
+                "data": [
+                    {"campaign_id": 10, "count": 3, "timestamp": "2026-04-01"},
+                    {"campaign_id": 10, "count": 4, "timestamp": "2026-04-02"},
+                ]
             }
         if type == "clicks":
             return {
-                "data": [{"id": "c1", "subscriber_id": 1, "url": "https://example.com"}]
+                "data": [
+                    {"campaign_id": 10, "count": 2, "timestamp": "2026-04-01"}
+                ]
             }
+        if type == "bounces":
+            return {
+                "data": [
+                    {"campaign_id": 10, "count": 1, "timestamp": "2026-04-01"}
+                ]
+            }
+        if type == "links":
+            return {"data": [{"url": "https://example.com", "count": 2}]}
         return {"data": {"total": 0}}
 
     async def test_campaign(
@@ -508,11 +521,23 @@ async def test_campaign_performance_summary_and_events(
         campaignId=10, eventTypes=["email_viewed", "email_bounced"]
     )
 
-    assert summary["views"] == 1
-    assert summary["clicks"] == 1
-    assert events["events"][0]["eventType"] == "email_viewed"
+    assert summary["views"] == 7
+    assert summary["clicks"] == 2
+    assert summary["bounces"] == 1
+    assert summary["topLinks"] == [{"url": "https://example.com", "count": 2}]
+    assert summary["unavailableMetrics"] == ["unsubscribes"]
+    assert events["events"] == []
     assert events["supported"] is False
-    assert events["unsupported"][0]["eventType"] == "email_bounced"
+    assert events["unsupported"] == [
+        {
+            "eventType": "email_viewed",
+            "reason": "Listmonk exposes aggregate analytics buckets, not event-level subscriber records",
+        },
+        {
+            "eventType": "email_bounced",
+            "reason": "Listmonk API wrapper does not expose event-level data for this event type",
+        },
+    ]
 
 
 @pytest.mark.asyncio
