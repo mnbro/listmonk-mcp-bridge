@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.31](https://github.com/mnbro/listmonk-mcp-bridge/compare/v0.4.30...v0.4.31) (2026-08-11)
+
+
+### Features
+
+* migrate to MCP Python SDK v2 ([#62](https://github.com/mnbro/listmonk-mcp-bridge/issues/62)) ([ee24f2e](https://github.com/mnbro/listmonk-mcp-bridge/commit/ee24f2ee1b1720dee8f8e0fd3fcbd3b313fc5d65))
+
 ## [0.4.30](https://github.com/mnbro/listmonk-mcp-bridge/compare/v0.4.29...v0.4.30) (2026-08-10)
 
 
