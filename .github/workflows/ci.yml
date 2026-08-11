@@ -60,3 +60,57 @@ jobs:
         env:
           PYTHONWARNINGS: error
         run: uv run --isolated --no-project --refresh --with ./dist/*.whl listmonk-mcp-bridge --version
+
+      - name: Verify packaged MCP protocol surface
+        env:
+          PYTHONWARNINGS: error
+        run: >-
+          uv run --isolated --no-project --refresh
+          --with ./dist/*.whl
+          --with pytest
+          --with pytest-asyncio
+          python -m pytest
+          tests/test_packaging.py
+          tests/test_mcp_v2_protocol.py
+
+  mcp-compatibility:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - sdk: minimum
+            requirement: mcp==2.0.0
+          - sdk: latest-v2
+            requirement: mcp>=2,<3
+
+    name: MCP SDK (${{ matrix.sdk }})
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Sync locked dependencies
+        run: uv sync --locked --all-extras
+
+      - name: Select ${{ matrix.sdk }} MCP SDK
+        run: uv pip install --upgrade "${{ matrix.requirement }}"
+
+      - name: Verify MCP compatibility
+        env:
+          PYTHONWARNINGS: error
+        run: >-
+          uv run --no-sync python -m pytest
+          tests/test_server.py
+          tests/test_packaging.py
+          tests/test_mcp_v2_protocol.py
