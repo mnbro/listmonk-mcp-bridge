@@ -351,6 +351,14 @@
       "sourceCommit": "ef0a75872463f10a4848af6c547d1c057405453a",
       "upstreamDeclaredApiVersion": "1.0.0",
       "verification": "source-verified"
+    },
+    {
+      "bridgeRelease": "v0.4.34",
+      "apiContractId": "lm-api:sha256:c66622870912c9a5f7eb0058a151fc6d53bbe51dd2e0321002601b5ee46fc1bd",
+      "sourceRelease": "v6.2.0",
+      "sourceCommit": "ef0a75872463f10a4848af6c547d1c057405453a",
+      "upstreamDeclaredApiVersion": "1.0.0",
+      "verification": "source-verified"
     }
   ]
 }
