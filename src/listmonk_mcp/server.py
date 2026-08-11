@@ -1,4 +1,4 @@
-"""FastMCP server for Listmonk with explicit safety guardrails."""
+"""MCP v2 server for Listmonk with explicit safety guardrails."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ import os
 import re
 import time
 from collections import deque
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from importlib.metadata import PackageNotFoundError, version
@@ -20,9 +20,6 @@ from urllib.parse import urlparse
 from uuid import uuid4
 
 import typer
-from mcp.server.fastmcp import FastMCP
-from mcp.server.fastmcp.server import Settings as _FastMCPSettings
-from mcp.types import ToolAnnotations
 from pydantic import Field, WithJsonSchema
 
 from .client import (
@@ -35,33 +32,29 @@ from .client import (
 from .config import Config
 from .config import get_config as load_runtime_config
 from .exceptions import ResourceNotFoundError, safe_execute_async
+from .mcp_adapter import MCPRuntime, MCPServerType, ToolHints
 
 audit_logger = logging.getLogger("listmonk_mcp.audit")
 operations_logger = logging.getLogger("listmonk_mcp.operations")
 logger = logging.getLogger(__name__)
 
-# MCP v1 defines Settings before FastMCP, leaving its lifespan annotation
-# unresolved. Rebuild after the SDK module finishes importing so
-# pydantic-settings can inspect every field safely.
-_FastMCPSettings.model_rebuild()
-
-READ_ONLY = ToolAnnotations(
-    readOnlyHint=True,
-    destructiveHint=False,
-    idempotentHint=True,
-    openWorldHint=True,
+READ_ONLY = ToolHints(
+    read_only=True,
+    destructive=False,
+    idempotent=True,
+    open_world=True,
 )
-MUTATING = ToolAnnotations(
-    readOnlyHint=False,
-    destructiveHint=False,
-    idempotentHint=False,
-    openWorldHint=True,
+MUTATING = ToolHints(
+    read_only=False,
+    destructive=False,
+    idempotent=False,
+    open_world=True,
 )
-DESTRUCTIVE = ToolAnnotations(
-    readOnlyHint=False,
-    destructiveHint=True,
-    idempotentHint=False,
-    openWorldHint=True,
+DESTRUCTIVE = ToolHints(
+    read_only=False,
+    destructive=True,
+    idempotent=False,
+    open_world=True,
 )
 
 
@@ -220,13 +213,21 @@ CampaignBodyReplacementsPayload = Annotated[
 
 
 @asynccontextmanager
-async def lifespan(app: Any) -> Any:
-    yield
+async def lifespan(app: MCPServerType) -> AsyncIterator[None]:
+    """Own the shared Listmonk client for one MCP application lifespan."""
+
+    del app
+    try:
+        yield
+    finally:
+        await close_shared_client()
 
 
-mcp = FastMCP(name="listmonk-mcp-bridge", lifespan=lifespan)
-_mcp_tool = mcp.tool
-_mcp_resource = mcp.resource
+_mcp_runtime = MCPRuntime(name="listmonk-mcp-bridge", lifespan=lifespan)
+mcp = _mcp_runtime.server
+_mcp_tool = _mcp_runtime.tool
+_mcp_resource = _mcp_runtime.resource
+_mcp_prompt = _mcp_runtime.prompt
 _client: ListmonkClient | None = None
 _bulk_query_events: deque[float] = deque()
 _template_variable_pattern = re.compile(r"{{\s*([^{}]+?)\s*}}")
@@ -312,7 +313,7 @@ AGENTIC_TOOL_NAMES: set[str] = {
 }
 
 
-def create_production_server() -> FastMCP:
+def create_production_server() -> MCPServerType:
     return mcp
 
 
@@ -325,6 +326,16 @@ def get_client() -> ListmonkClient:
     if _client is None:
         _client = ListmonkClient(get_config())
     return _client
+
+
+async def close_shared_client() -> None:
+    """Close and clear the process-wide Listmonk client, if it was created."""
+
+    global _client
+    client = _client
+    _client = None
+    if client is not None:
+        await client.close()
 
 
 def _raw_mcp_mode() -> str:
@@ -378,7 +389,7 @@ def _positive_env_int(name: str, default: int) -> int:
         return default
 
 
-def _risk_from_annotations(tool_name: str, annotations: ToolAnnotations) -> RiskClass:
+def _risk_from_annotations(tool_name: str, annotations: ToolHints) -> RiskClass:
     if tool_name in {
         "get_server_config",
         "get_settings",
@@ -394,9 +405,9 @@ def _risk_from_annotations(tool_name: str, annotations: ToolAnnotations) -> Risk
         return "IMPORT"
     if "send" in tool_name or "schedule" in tool_name or "test_campaign" == tool_name:
         return "SEND"
-    if annotations.destructiveHint:
+    if annotations.destructive:
         return "DESTRUCTIVE"
-    if annotations.readOnlyHint:
+    if annotations.read_only:
         return "READ_ONLY"
     return "MUTATING"
 
@@ -516,7 +527,7 @@ async def write_audit_event(
     )
 
 
-def listmonk_tool(*, annotations: ToolAnnotations) -> Callable[[Any], Any]:
+def listmonk_tool(*, annotations: ToolHints) -> Callable[[Any], Any]:
     def decorator(fn: Any) -> Any:
         tool_name = fn.__name__
         risk_class = _risk_from_annotations(tool_name, annotations)
@@ -3664,7 +3675,7 @@ async def templates_summary_resource() -> str:
     return json.dumps(await template_catalog(), indent=2)
 
 
-@mcp.prompt()
+@_mcp_prompt()
 def inspect_listmonk_audience() -> str:
     return (
         "Inspect the Listmonk audience safely. Call audience_catalog first. "
@@ -3674,7 +3685,7 @@ def inspect_listmonk_audience() -> str:
     )
 
 
-@mcp.prompt()
+@_mcp_prompt()
 def create_campaign_safely() -> str:
     return (
         "Create a Listmonk campaign safely. Call audience_catalog, then "
@@ -3685,7 +3696,7 @@ def create_campaign_safely() -> str:
     )
 
 
-@mcp.prompt()
+@_mcp_prompt()
 def send_campaign_safely() -> str:
     return (
         "Send a Listmonk campaign safely. Call campaign_catalog or "
@@ -3695,7 +3706,7 @@ def send_campaign_safely() -> str:
     )
 
 
-@mcp.prompt()
+@_mcp_prompt()
 def import_subscribers_safely() -> str:
     return (
         "Import subscribers safely. Call prepare_subscriber_import and show "
@@ -3704,7 +3715,7 @@ def import_subscribers_safely() -> str:
     )
 
 
-@mcp.prompt()
+@_mcp_prompt()
 def review_campaign_performance() -> str:
     return (
         "Review campaign performance. Call campaign_catalog if the campaign ID is "
@@ -3714,7 +3725,7 @@ def review_campaign_performance() -> str:
     )
 
 
-@mcp.prompt()
+@_mcp_prompt()
 def debug_listmonk_connection() -> str:
     return (
         "Debug the Listmonk connection. Call check_listmonk_health, "
@@ -3725,7 +3736,7 @@ def debug_listmonk_connection() -> str:
 
 
 def run() -> None:
-    mcp.run()
+    _mcp_runtime.run_stdio()
 
 
 def main() -> None:

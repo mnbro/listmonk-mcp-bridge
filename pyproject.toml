@@ -23,7 +23,7 @@ classifiers = [
 
 dependencies = [
     # Major upgrades require an explicit compatibility PR and clean-wheel validation.
-    "mcp>=1.27,<2",
+    "mcp>=2.0,<3",
     "httpx>=0.24,<1",
     "pydantic[email]>=2,<3",
     "pydantic-settings>=2,<3",
@@ -89,6 +89,7 @@ disallow_untyped_defs = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 addopts = "-v --tb=short"
 
 [tool.black]
