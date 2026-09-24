@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.35](https://github.com/mnbro/listmonk-mcp-bridge/compare/v0.4.34...v0.4.35) (2026-09-24)
+
+
+### Bug Fixes
+
+* **deps:** patch security alerts and restore MCP compatibility checks ([#71](https://github.com/mnbro/listmonk-mcp-bridge/issues/71)) ([e33be59](https://github.com/mnbro/listmonk-mcp-bridge/commit/e33be590a77fa06c596073a380b973d720dd0c2d))
+
 ## [0.4.34](https://github.com/mnbro/listmonk-mcp-bridge/compare/v0.4.33...v0.4.34) (2026-08-11)
 
 
