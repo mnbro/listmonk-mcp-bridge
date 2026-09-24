@@ -27,7 +27,8 @@ dependencies = [
     "httpx>=0.24,<1",
     "pydantic[email]>=2,<3",
     "pydantic-settings>=2,<3",
-    "typer>=0.9,<1",
+    # Typer 0.26+ vendors Click and avoids deprecated Click imports.
+    "typer>=0.26.0,<1",
 ]
 
 [project.optional-dependencies]
@@ -41,7 +42,7 @@ dev = [
     "black>=23.0.0",
 ]
 docs = [
-    "mkdocs-material>=9.5.0",
+    "mkdocs-material>=9.7.7",
     "mkdocs-git-revision-date-localized-plugin>=1.2.0",
 ]
 
