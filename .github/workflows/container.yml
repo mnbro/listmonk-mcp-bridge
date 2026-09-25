@@ -61,7 +61,7 @@ jobs:
           images: ghcr.io/mnbro/listmonk-mcp-bridge
           tags: |
             type=ref,event=branch
-            type=ref,event=tag
+            type=ref,event=tag,enable=${{ github.event_name == 'push' }}
             type=sha,prefix=sha-,enable=${{ github.event_name == 'push' || github.event_name == 'pull_request' }}
             type=raw,value=rebuild-${{ github.run_id }}-${{ github.run_attempt }},enable=${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
             type=raw,value=master,enable=${{ github.ref == 'refs/heads/master' }}
