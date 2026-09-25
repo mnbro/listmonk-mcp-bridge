@@ -35,6 +35,9 @@ def test_runtime_dependencies_have_reviewed_major_version_caps() -> None:
 
 
 def test_installed_console_entry_point_reports_version() -> None:
+    from listmonk_mcp import __version__
+
+    assert __version__ == version("listmonk-mcp-bridge")
     entry_point = Path(sys.executable).with_name("listmonk-mcp-bridge")
     env = os.environ.copy()
     env["PYTHONWARNINGS"] = "error"

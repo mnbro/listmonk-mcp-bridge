@@ -7,6 +7,8 @@ on:
       - "v*"
   pull_request:
     branches: [master]
+  schedule:
+    - cron: "43 5 * * *"
   workflow_dispatch:
 
 permissions:
@@ -16,9 +18,14 @@ permissions:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
+concurrency:
+  group: container-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - name: Checkout code
@@ -55,7 +62,9 @@ jobs:
           tags: |
             type=ref,event=branch
             type=ref,event=tag
-            type=sha,prefix=sha-
+            type=sha,prefix=sha-,enable=${{ github.event_name == 'push' || github.event_name == 'pull_request' }}
+            type=raw,value=rebuild-${{ github.run_id }}-${{ github.run_attempt }},enable=${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+            type=raw,value=master,enable=${{ github.ref == 'refs/heads/master' }}
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and optionally publish
@@ -63,6 +72,8 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
+          pull: true
+          no-cache-filters: base
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

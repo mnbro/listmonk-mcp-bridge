@@ -23,6 +23,38 @@ lifespan cleanup, and the installed wheel with Python warnings treated as errors
 When changing the SDK boundary, update the lockfile and keep all of these checks
 passing before release.
 
+## Automated Dependency Maintenance
+
+The existing Published Package Canary runs daily at 05:17 UTC. Alongside its
+published-package smoke tests, it audits every version in `uv.lock`, including
+development, documentation, and platform-specific dependencies. CI runs the same
+audit on pull requests and master. To run it locally:
+
+```bash
+python scripts/audit_dependencies.py --report /tmp/listmonk-dependency-audit.json
+```
+
+When an audit finds vulnerable packages, the canary attempts targeted lockfile
+upgrades and audits the result again. A failed published-package smoke test or
+failed Dependabot Python CI run also triggers a refresh of direct runtime
+dependencies. Repairs use trusted master code and stay within the dependency
+bounds in `pyproject.toml`. They create or update one
+`automation/python-security` PR. Missing audit data, unresolved vulnerabilities,
+and incompatible updates fail visibly and require review.
+
+The maintenance job uses the existing `GH_TOKEN_FOR_UPDATES` secret to create
+PRs that trigger CI. It must have repository contents and pull request write
+access. The ordinary `GITHUB_TOKEN` cannot trigger those PR workflows.
+
+Auto-merge Dependency Updates waits for all PR checks, including the dependency
+audit, MCP matrix, container, docs, and CodeQL. It rejects drafts, forks, and
+stale workflow results, and merges only the exact checked commit. Code changes,
+wider dependency bounds, and GitHub service errors still need manual attention.
+
+The documentation header reads the version from `pyproject.toml` during every
+MkDocs build. Package runtime version reporting uses installed distribution
+metadata, so neither requires a separate release edit.
+
 ## MCP Inspector Validation
 
 Use MCP Inspector before release or when changing tool registration:

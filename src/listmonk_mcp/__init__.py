@@ -1,6 +1,11 @@
 """Listmonk MCP Server package."""
 
-__version__ = "0.4.14"
+from importlib.metadata import PackageNotFoundError, version
+
+try:
+    __version__ = version("listmonk-mcp-bridge")
+except PackageNotFoundError:
+    __version__ = "0+unknown"
 
 # Core components
 from .client import ListmonkAPIError, ListmonkClient

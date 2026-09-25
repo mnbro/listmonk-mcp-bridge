@@ -1,6 +1,13 @@
 FROM ghcr.io/astral-sh/uv:0.9.30 AS uv
 
-FROM python:3.13-slim-bookworm AS builder
+FROM python:3.13-slim-bookworm AS base
+
+# Refresh Debian fixes even before the upstream Python image is rebuilt.
+RUN apt-get update \
+    && apt-get upgrade --yes --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
+
+FROM base AS builder
 
 COPY --from=uv /uv /usr/local/bin/uv
 
@@ -14,7 +21,7 @@ COPY src ./src
 
 RUN uv sync --locked --no-dev --no-editable
 
-FROM python:3.13-slim-bookworm AS runtime
+FROM base AS runtime
 
 LABEL org.opencontainers.image.title="listmonk-mcp-bridge" \
       org.opencontainers.image.description="MCP server for Listmonk newsletter operations" \
@@ -32,5 +39,7 @@ RUN useradd --create-home --home-dir /home/mcp --shell /usr/sbin/nologin mcp
 COPY --from=builder /app/.venv /app/.venv
 
 USER mcp
+
+RUN PYTHONWARNINGS=error listmonk-mcp-bridge --version
 
 ENTRYPOINT ["listmonk-mcp-bridge"]

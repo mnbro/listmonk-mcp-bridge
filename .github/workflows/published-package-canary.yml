@@ -4,16 +4,21 @@ on:
   schedule:
     - cron: "17 5 * * *"
   workflow_dispatch:
+  workflow_run:
+    workflows: [CI]
+    branches: ["dependabot/uv/**"]
+    types: [completed]
 
 permissions:
   contents: read
 
 concurrency:
-  group: published-package-canary
-  cancel-in-progress: true
+  group: published-package-canary-${{ github.event_name }}
+  cancel-in-progress: false
 
 jobs:
   smoke:
+    if: github.event_name != 'workflow_run'
     name: smoke (${{ matrix.python-version }})
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -39,3 +44,77 @@ jobs:
           UV_CACHE_DIR: ${{ runner.temp }}/uv-cache
           UV_TOOL_DIR: ${{ runner.temp }}/uv-tools
         run: uvx --refresh --from listmonk-mcp-bridge listmonk-mcp-bridge --version
+
+  dependencies:
+    name: Audit and repair Python dependencies
+    needs: smoke
+    if: >-
+      always() && !cancelled() &&
+      ((github.event_name != 'workflow_run' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)) ||
+       (github.event.workflow_run.conclusion == 'failure' &&
+        github.event.workflow_run.event == 'pull_request' &&
+        github.event.workflow_run.head_repository.full_name == github.repository &&
+        startsWith(github.event.workflow_run.head_branch, 'dependabot/uv/')))
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    concurrency:
+      group: python-security-maintenance
+      cancel-in-progress: false
+    steps:
+      # Always use trusted default-branch code, never the failed PR's checkout.
+      - name: Checkout default branch
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v9.0.0
+        with:
+          prune-cache: true
+
+      - name: Audit and refresh affected dependencies
+        env:
+          REPAIR_RUNTIME: ${{ needs.smoke.result == 'failure' || github.event_name == 'workflow_run' }}
+        run: |
+          args=(--fix --report "${RUNNER_TEMP}/dependency-audit.json")
+          if [ "$REPAIR_RUNTIME" = "true" ]; then
+            args+=(--refresh-runtime)
+          fi
+          python scripts/audit_dependencies.py "${args[@]}"
+
+      - name: Require a token that triggers pull request checks
+        env:
+          UPDATE_TOKEN: ${{ secrets.GH_TOKEN_FOR_UPDATES }}
+        run: |
+          if [ -z "$UPDATE_TOKEN" ]; then
+            echo "::error::Set GH_TOKEN_FOR_UPDATES to a token with repository contents and pull request write access. GITHUB_TOKEN cannot trigger the required PR workflows."
+            exit 1
+          fi
+
+      - name: Create or update security repair PR
+        uses: peter-evans/create-pull-request@v8.1.1
+        with:
+          token: ${{ secrets.GH_TOKEN_FOR_UPDATES }}
+          branch: automation/python-security
+          delete-branch: true
+          add-paths: uv.lock
+          commit-message: "fix(deps): refresh Python dependencies after security or compatibility failure"
+          title: "fix(deps): refresh Python dependencies after security or compatibility failure"
+          body: |
+            The daily dependency audit or a failed dependency check triggered this repair.
+
+            Updates stay within the existing project dependency bounds. Every locked Python/platform variant was audited again after resolution. CI, container, documentation, and CodeQL checks must pass before the existing auto-merge workflow can merge this PR.
+
+            A failure that requires application changes or wider dependency bounds needs manual review; this workflow does not suppress tests or warnings.
+          labels: |
+            dependencies
+            security
+            python
