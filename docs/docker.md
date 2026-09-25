@@ -50,7 +50,26 @@ docker run --rm -i \
 docker build -t listmonk-mcp-bridge:local .
 ```
 
-Use `:latest` for the current master build, `:vX.Y.Z` for a release, or `:sha-...` for an immutable commit build.
+Use `:latest` for the current master build or `:vX.Y.Z` for a release.
+The `:sha-...` tags identify the source commit; pin an image digest (`@sha256:...`)
+when you need immutable image contents.
+
+## Automatic Security Rebuilds
+
+The existing Container workflow rebuilds `:latest` and `:master` every day at
+05:43 UTC, as well as after code changes. Each build pulls the current
+`python:3.13-slim-bookworm` image and refreshes Debian packages in an uncached
+base stage shared by the builder and runtime. This picks up published Debian
+fixes even before the Python image maintainers rebuild their image.
+
+The build checks the installed command as the non-root runtime user before
+publishing. Scheduled and manual rebuilds also get a
+`:rebuild-<run-id>-<attempt>` tag; they do not overwrite existing release or
+commit tags. GitHub schedules can be delayed, so use **Run workflow** on
+Container when an urgent rebuild is needed.
+
+Pull the refreshed image and recreate your container to apply the fixes to an
+existing installation. Running containers do not update themselves.
 
 ## Running Listmonk
 

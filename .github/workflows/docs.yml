@@ -7,6 +7,7 @@ on:
       - 'docs/**'
       - 'README.md'
       - 'mkdocs.yml'
+      - 'scripts/docs_version.py'
       - 'pyproject.toml'
       - 'uv.lock'
       - '.github/workflows/docs.yml'
@@ -16,6 +17,7 @@ on:
       - 'docs/**'
       - 'README.md'
       - 'mkdocs.yml'
+      - 'scripts/docs_version.py'
       - 'pyproject.toml'
       - 'uv.lock'
       - '.github/workflows/docs.yml'
@@ -49,6 +51,10 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.11"
+
+      - name: Prepare lockfile for release PR
+        if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'release-please--')
+        run: uv lock --upgrade-package listmonk-mcp-bridge
 
       - name: Install dependencies
         run: uv sync --locked --all-extras

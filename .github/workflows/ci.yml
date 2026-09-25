@@ -10,6 +10,22 @@ permissions:
   contents: read
 
 jobs:
+  dependency-audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@v9.0.0
+      - name: Prepare lockfile for release PR
+        if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'release-please--')
+        run: uv lock --upgrade-package listmonk-mcp-bridge
+      - name: Audit every locked dependency variant
+        run: python scripts/audit_dependencies.py --report "${RUNNER_TEMP}/dependency-audit.json"
+
   test:
     runs-on: ubuntu-latest
     strategy:
@@ -104,6 +120,10 @@ jobs:
         with:
           enable-cache: true
           prune-cache: true
+
+      - name: Prepare lockfile for release PR
+        if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'release-please--')
+        run: uv lock --upgrade-package listmonk-mcp-bridge
 
       - name: Sync locked dependencies
         run: uv sync --locked --all-extras
