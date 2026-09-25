@@ -54,10 +54,12 @@ jobs:
 
           # CI can finish before Container, Docs, or CodeQL. Keep every check enabled.
           gh pr checks "$PR_NUMBER" --repo "$REPO" --watch --interval 15
-          checks="$(gh pr checks "$PR_NUMBER" --repo "$REPO" --json name,bucket)"
+          checks="$(gh pr checks "$PR_NUMBER" --repo "$REPO" --json name,bucket,state)"
           # Docs deployment is intentionally skipped on PRs; other skipped or
           # cancelled checks must not silently count as successful validation.
-          jq -e 'length > 0 and all(.[]; .bucket == "pass" or (.name == "deploy" and .bucket == "skipping"))' \
+          # CodeQL can report NEUTRAL for dependency-only changes; repository
+          # code-scanning rules still enforce its required analysis results.
+          jq -e 'length > 0 and all(.[]; .bucket == "pass" or (.name == "deploy" and .bucket == "skipping") or (.name == "CodeQL" and .state == "NEUTRAL"))' \
             <<< "$checks" >/dev/null
           gh pr merge "$PR_NUMBER" --repo "$REPO" --squash --delete-branch \
             --match-head-commit "$EXPECTED_HEAD"

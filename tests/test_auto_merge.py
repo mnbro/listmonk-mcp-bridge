@@ -115,6 +115,7 @@ def test_failed_or_pending_checks_never_merge(
         [{"name": "MCP SDK (minimum)", "bucket": "cancel"}],
         [{"name": "MCP SDK (minimum)", "bucket": "skipping"}],
         [{"name": "Dependency audit", "bucket": "pending"}],
+        [{"name": "CodeQL", "bucket": "skipping", "state": "SKIPPED"}],
     ],
 )
 def test_missing_or_unvalidated_checks_never_merge(
@@ -123,6 +124,21 @@ def test_missing_or_unvalidated_checks_never_merge(
     code, calls = run_gate(tmp_path, eligible_pr, check_results=check_results)
     assert code != 0
     assert not any(call[:2] == ["pr", "merge"] for call in calls)
+
+
+def test_dependency_only_codeql_neutral_result_is_accepted(
+    tmp_path: Path, eligible_pr: dict[str, Any]
+) -> None:
+    code, calls = run_gate(
+        tmp_path,
+        eligible_pr,
+        check_results=[
+            {"name": "test", "bucket": "pass", "state": "SUCCESS"},
+            {"name": "CodeQL", "bucket": "skipping", "state": "NEUTRAL"},
+        ],
+    )
+    assert code == 0
+    assert calls[-1][:2] == ["pr", "merge"]
 
 
 @pytest.mark.parametrize(
