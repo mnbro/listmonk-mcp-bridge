@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.37](https://github.com/mnbro/listmonk-mcp-bridge/compare/v0.4.36...v0.4.37) (2026-09-30)
+
+
+### Bug Fixes
+
+* **deps:** refresh Python dependencies after security or compatibility failure ([#75](https://github.com/mnbro/listmonk-mcp-bridge/issues/75)) ([8c9e573](https://github.com/mnbro/listmonk-mcp-bridge/commit/8c9e573ba03dec48b594788fc5deb2e08fadd715))
+
 ## [0.4.36](https://github.com/mnbro/listmonk-mcp-bridge/compare/v0.4.35...v0.4.36) (2026-09-25)
 
 
