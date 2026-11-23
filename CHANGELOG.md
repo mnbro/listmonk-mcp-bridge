@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.43](https://github.com/mnbro/listmonk-mcp-bridge/compare/v0.4.42...v0.4.43) (2026-11-23)
+
+
+### Bug Fixes
+
+* **campaigns:** allow setting a draft send date ([#89](https://github.com/mnbro/listmonk-mcp-bridge/issues/89)) ([760edab](https://github.com/mnbro/listmonk-mcp-bridge/commit/760edab699a97607fb3695e370772d42cdb726ee))
+
 ## [0.4.42](https://github.com/mnbro/listmonk-mcp-bridge/compare/v0.4.41...v0.4.42) (2026-11-14)
 
 
