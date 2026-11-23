@@ -166,6 +166,11 @@ async def test_reported_tool_schemas_include_documented_arguments() -> None:
         tools["safe_schedule_campaign"]["properties"]["approval"]["anyOf"][0]["type"]
         == "object"
     )
+    assert tools["update_campaign"]["properties"]["send_at"]["default"] is None
+    draft_date = tools["safe_set_campaign_send_at"]
+    assert draft_date["required"] == ["campaignId", "sendAt"]
+    assert draft_date["properties"]["dryRun"]["default"] is True
+    assert draft_date["properties"]["confirmApply"]["default"] is False
 
 
 @pytest.mark.asyncio

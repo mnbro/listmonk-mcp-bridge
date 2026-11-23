@@ -23,6 +23,7 @@ These tools compose existing Listmonk wrappers into safer primitives for LLM age
 | `safe_test_campaign` | send | Accepts recipient email addresses as `testRecipients`, validates input, requires `confirmSend=true`, sends a Listmonk test campaign and writes audit logs. |
 | `safe_send_campaign` | send | Runs risk checks, validates optional approval evidence, optionally sends a test, requires `confirmSend=true`, then sends through the existing API wrapper and writes audit logs. |
 | `safe_schedule_campaign` | mutating | Runs risk checks, validates optional approval evidence, requires `confirmSchedule=true`, schedules through the existing API wrapper and writes audit logs. |
+| `safe_set_campaign_send_at` | mutating | Previews or sets a draft's **Send later** date with `campaignId` and `sendAt`. Use a future ISO 8601 date with a timezone offset, or `null` to clear it. Defaults to `dryRun=true`. Applying requires `dryRun=false` and `confirmApply=true`. Re-reads the stored date and draft status and writes audit events. |
 | `safe_send_transactional_email` | send | Requires `confirmSend=true`, validates recipient input, supports `idempotencyKey`, sends through the existing transactional email wrapper and writes audit logs. |
 | `campaign_performance_summary` | read-only | Sums Listmonk analytics time buckets into a compact summary and marks unavailable metrics explicitly. |
 | `export_engagement_events` | read-only | Reports `supported=false` because Listmonk exposes aggregate analytics buckets rather than subscriber-level event records. |
@@ -111,7 +112,7 @@ dry runs and upserts can fail with a Listmonk permission error.
 | `get_campaigns` | read-only | List campaigns with Listmonk's status, tag, query and no-body filters. |
 | `get_campaign` | read-only | Get one campaign. |
 | `create_campaign` | mutating | Create a draft campaign; can auto-convert plain text to HTML. Use `schedule_campaign` for future delivery. |
-| `update_campaign` | mutating | Update campaign. |
+| `update_campaign` | mutating | Update campaign fields. Pass `send_at` to fill in a future **Send later** date. Use `safe_set_campaign_send_at` for draft-only editing or clearing the date. |
 | `send_campaign` | send | Requires `confirm_send=true`. |
 | `test_campaign` | send | Requires `confirm_send=true`; `subscribers` must be recipient email addresses. The client sends the current campaign payload plus those recipients to match Listmonk's test endpoint requirements. |
 | `safe_test_campaign` | send | Requires `confirmSend=true`; recommended wrapper for agents because it validates `testRecipients` and writes audit logs. |

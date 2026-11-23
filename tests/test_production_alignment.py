@@ -48,6 +48,8 @@ asyncio.run(main())
     assert payload["mode"] == "agentic"
     assert payload["readOnly"] is True
     assert "safe_send_campaign" in payload["tools"]
+    assert "safe_set_campaign_send_at" in payload["tools"]
+    assert "update_campaign" in payload["hidden"]
     assert "send_campaign" not in payload["tools"]
     assert "send_campaign" in payload["hidden"]
     assert "listmonk://capabilities" in payload["resources"]

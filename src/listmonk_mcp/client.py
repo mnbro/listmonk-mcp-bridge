@@ -809,8 +809,12 @@ class ListmonkClient:
         )
         return await self._request("POST", "/api/campaigns", json_data=payload)
 
-    async def update_campaign(self, campaign_id: int, **fields: Any) -> dict[str, Any]:
+    async def update_campaign(
+        self, campaign_id: int, *, require_draft: bool = False, **fields: Any
+    ) -> dict[str, Any]:
         current = response_object(await self.get_campaign(campaign_id), "campaign")
+        if require_draft and current.get("status") != "draft":
+            raise ListmonkAPIError("Campaign must be in draft status")
         return await self._request(
             "PUT",
             f"/api/campaigns/{campaign_id}",

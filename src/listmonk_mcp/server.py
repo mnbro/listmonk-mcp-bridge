@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import functools
 import hashlib
+import inspect
 import json
 import logging
 import os
@@ -292,6 +293,7 @@ AGENTIC_TOOL_NAMES: set[str] = {
     "campaign_preview_pack",
     "safe_create_campaign_draft",
     "safe_update_campaign_content",
+    "safe_set_campaign_send_at",
     "safe_test_campaign",
     "safe_send_campaign",
     "safe_schedule_campaign",
@@ -407,7 +409,9 @@ def _risk_from_annotations(tool_name: str, annotations: ToolHints) -> RiskClass:
         return "ADMIN"
     if "import" in tool_name:
         return "IMPORT"
-    if "send" in tool_name or "schedule" in tool_name or "test_campaign" == tool_name:
+    if tool_name != "safe_set_campaign_send_at" and (
+        "send" in tool_name or "schedule" in tool_name or tool_name == "test_campaign"
+    ):
         return "SEND"
     if annotations.destructive:
         return "DESTRUCTIVE"
@@ -535,12 +539,25 @@ def listmonk_tool(*, annotations: ToolHints) -> Callable[[Any], Any]:
     def decorator(fn: Any) -> Any:
         tool_name = fn.__name__
         risk_class = _risk_from_annotations(tool_name, annotations)
+        signature = inspect.signature(fn)
         ALL_TOOL_NAMES.add(tool_name)
         TOOL_RISK_CLASSES[tool_name] = risk_class
 
         @functools.wraps(fn)
         async def guarded(*args: Any, **kwargs: Any) -> dict[str, Any]:
-            dry_run = _is_effective_dry_run(kwargs)
+            bound = signature.bind(*args, **kwargs)
+            bound.apply_defaults()
+            arguments = bound.arguments
+            dry_run = _is_effective_dry_run(arguments)
+            confirmed = bool(
+                arguments.get("confirm")
+                or arguments.get("confirm_send")
+                or arguments.get("confirmSend")
+                or arguments.get("confirmSchedule")
+                or arguments.get("confirmApply")
+                or arguments.get("confirmImport")
+                or arguments.get("confirmUpload")
+            )
             if (
                 risk_class in WRITE_RISK_CLASSES
                 and _read_only_enabled()
@@ -553,15 +570,7 @@ def listmonk_tool(*, annotations: ToolHints) -> Callable[[Any], Any]:
                         risk_class=risk_class,
                         operation=tool_name,
                         dry_run=dry_run,
-                        confirmed=bool(
-                            kwargs.get("confirm")
-                            or kwargs.get("confirm_send")
-                            or kwargs.get("confirmSend")
-                            or kwargs.get("confirmSchedule")
-                            or kwargs.get("confirmApply")
-                            or kwargs.get("confirmImport")
-                            or kwargs.get("confirmUpload")
-                        ),
+                        confirmed=confirmed,
                         mode=_raw_mcp_mode(),
                         read_only=True,
                         summary={"argumentKeys": sorted(kwargs)},
@@ -570,15 +579,6 @@ def listmonk_tool(*, annotations: ToolHints) -> Callable[[Any], Any]:
                     )
                 return blocked
             result = await fn(*args, **kwargs)
-            confirmed = bool(
-                kwargs.get("confirm")
-                or kwargs.get("confirm_send")
-                or kwargs.get("confirmSend")
-                or kwargs.get("confirmSchedule")
-                or kwargs.get("confirmApply")
-                or kwargs.get("confirmImport")
-                or kwargs.get("confirmUpload")
-            )
             if (
                 risk_class in WRITE_RISK_CLASSES
                 and not dry_run
@@ -1603,7 +1603,9 @@ async def update_campaign(
     lists: list[int] | None = None,
     body: str | None = None,
     content_type: str | None = None,
+    send_at: str | None = None,
 ) -> dict[str, Any]:
+    """Update campaign fields, optionally setting a future send date."""
     return await _call(
         lambda: get_client().update_campaign(
             campaign_id,
@@ -1614,6 +1616,7 @@ async def update_campaign(
                     "lists": lists,
                     "body": body,
                     "content_type": content_type,
+                    "send_at": send_at,
                 }
             ),
         )
@@ -3374,6 +3377,105 @@ async def safe_update_campaign_content(
         "blockers": [],
         "data": response,
     }
+
+
+def _parse_campaign_send_at(value: str) -> datetime:
+    if not re.fullmatch(
+        r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}"
+        r"(?::[0-9]{2}(?:\.[0-9]{1,6})?)?"
+        r"(?:Z|[+-](?:[01][0-9]|2[0-3]):[0-5][0-9])",
+        value,
+    ):
+        raise ValueError("Expected an ISO 8601 date and time with a timezone offset")
+    return datetime.fromisoformat(value)
+
+
+@listmonk_tool(annotations=MUTATING)
+async def safe_set_campaign_send_at(
+    campaignId: int,
+    sendAt: str | None,
+    dryRun: bool = True,
+    confirmApply: bool = False,
+) -> dict[str, Any]:
+    """Set a draft's future send date for human scheduling, or clear it with null."""
+    result: dict[str, Any] = {
+        "success": False,
+        "dryRun": dryRun,
+        "campaignId": campaignId,
+        "sendAt": sendAt,
+        "blockers": [],
+        "warnings": [],
+    }
+    if not dryRun and not confirmApply:
+        return {**result, "blockers": ["confirmApply=true is required"]}
+
+    requested = None
+    if sendAt is not None:
+        try:
+            requested = _parse_campaign_send_at(sendAt)
+        except ValueError:
+            return {
+                **result,
+                "blockers": [
+                    "sendAt must be an ISO 8601 date and time with a timezone offset"
+                ],
+            }
+        if requested <= datetime.now(UTC):
+            return {**result, "blockers": ["sendAt must be in the future"]}
+
+    client = get_client()
+    if not dryRun:
+        updated = await _call(
+            lambda: client.update_campaign(
+                campaignId,
+                require_draft=True,
+                send_at=requested.isoformat() if requested is not None else None,
+            )
+        )
+        if not updated["success"]:
+            return {**result, "error": updated["error"]}
+
+    response = await _call(lambda: client.get_campaign(campaignId))
+    campaign = _one_from_response(response) or {}
+    if dryRun:
+        if not response["success"]:
+            return {**result, "error": response["error"]}
+        if campaign.get("status") != "draft":
+            return {**result, "blockers": ["Campaign must be in draft status"]}
+        return {**result, "success": True, "status": "draft"}
+
+    if not response["success"]:
+        blocker = "Could not re-read the campaign after updating sendAt"
+    elif campaign.get("status") != "draft":
+        blocker = "Campaign status was not draft after updating sendAt"
+    else:
+        stored = campaign.get("send_at")
+        try:
+            matches = (
+                isinstance(stored, str) and _parse_campaign_send_at(stored) == requested
+                if requested is not None
+                else "send_at" in campaign and stored is None
+            )
+        except ValueError:
+            matches = False
+        if matches:
+            return {**result, "success": True, "status": "draft"}
+        blocker = "Listmonk stored a different sendAt value than requested"
+
+    await write_audit_event(
+        tool_name="safe_set_campaign_send_at",
+        risk_class="MUTATING",
+        operation="verify_campaign_send_at",
+        resource_type="campaign",
+        resource_id=str(campaignId),
+        dry_run=False,
+        confirmed=True,
+        mode=_raw_mcp_mode(),
+        read_only=False,
+        result="failure",
+        error={"message": blocker},
+    )
+    return {**result, "blockers": [blocker]}
 
 
 @listmonk_tool(annotations=READ_ONLY)
