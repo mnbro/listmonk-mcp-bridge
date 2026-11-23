@@ -182,7 +182,8 @@
         "tool:export_campaign_markdown",
         "tool:get_campaign",
         "tool:regex_replace_in_campaign_body",
-        "tool:replace_in_campaign_body"
+        "tool:replace_in_campaign_body",
+        "tool:safe_set_campaign_send_at"
       ]
     },
     {
@@ -200,6 +201,7 @@
         "tool:batch_replace_in_campaign_body",
         "tool:regex_replace_in_campaign_body",
         "tool:replace_in_campaign_body",
+        "tool:safe_set_campaign_send_at",
         "tool:safe_update_campaign_content",
         "tool:update_campaign"
       ]

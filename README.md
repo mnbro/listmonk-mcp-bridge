@@ -45,6 +45,7 @@ Recommended for autonomous LLM/orchestrator use:
 - `personalization_fields_report`
 - `validate_message_personalization`
 - `campaign_risk_check`
+- `safe_set_campaign_send_at` for drafts that a human will schedule
 - `safe_test_campaign`
 - `safe_send_campaign`
 - `safe_schedule_campaign`
@@ -103,6 +104,8 @@ Some low-level tools have confirmation guards, but they are still closer to the 
 Campaign flow: `check_listmonk_health` -> `audience_summary` -> `personalization_fields_report` -> `validate_message_personalization` -> `campaign_risk_check` -> `get_campaign_html_preview` or `export_campaign_markdown` -> `safe_test_campaign` -> external approval if required -> `safe_schedule_campaign` or `safe_send_campaign` -> `campaign_performance_summary` -> `export_campaign_postmortem_markdown`.
 
 Do not use `send_campaign` directly in an orchestrator. Do not use `schedule_campaign` directly unless there is an explicit low-level reason. Prefer `safe_test_campaign` before `safe_send_campaign`; when `safe_send_campaign` uses `requireTestSend=true`, provide `testRecipients`.
+
+For human scheduling, use `safe_set_campaign_send_at` to prepare the **Send later** date on a draft. Preview with the default `dryRun=true`, then use `dryRun=false` and `confirmApply=true` to save a future ISO 8601 date with a timezone offset. Pass `sendAt=null` to clear the date. The operator reviews the draft and clicks **Schedule** in Listmonk.
 
 Transactional email flow: `get_subscriber_context` -> `validate_message_personalization` if subject/body are generated -> `safe_send_transactional_email` with `confirmSend=false` for a safety check -> `safe_send_transactional_email` with `confirmSend=true` only after an explicit decision. Use an `idempotencyKey` for recurring events, for example `birthday-email:{subscriberId}:{year}`.
 

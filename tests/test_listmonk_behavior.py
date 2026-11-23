@@ -118,6 +118,7 @@ class CampaignRecordingClient(RecordingClient):
                 "archive_slug": "draft",
                 "archive_template_id": 4,
                 "archive_meta": {"utm": "source"},
+                "send_at": "2099-01-01T00:00:00Z",
             }
         }
 
@@ -798,14 +799,23 @@ async def test_import_serializes_options_in_listmonk_params_field(tmp_path: Path
 
 
 @pytest.mark.asyncio
-async def test_partial_campaign_update_preserves_relationships_and_metadata() -> None:
+@pytest.mark.parametrize("send_at", [None, "2099-01-02T00:00:00Z"])
+async def test_partial_campaign_update_preserves_relationships_and_metadata(
+    monkeypatch: pytest.MonkeyPatch, send_at: str | None
+) -> None:
     client = CampaignRecordingClient()
+    monkeypatch.setattr(server, "get_client", lambda: client)
 
-    await client.update_campaign(8, subject="Updated subject")
+    result = await server.update_campaign(
+        campaign_id=8, subject="Updated subject", send_at=send_at
+    )
 
+    assert result["success"] is True
     payload = last_payload(client)
     assert last_request(client)["endpoint"] == "/api/campaigns/8"
+    assert len(client.requests) == 1
     assert payload["subject"] == "Updated subject"
+    assert payload["send_at"] == (send_at or "2099-01-01T00:00:00Z")
     assert payload["lists"] == [1]
     assert payload["media"] == [5]
     assert payload["attribs"] == {"segment": "test"}
